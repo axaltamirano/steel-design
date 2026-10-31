@@ -24,3 +24,15 @@ class ResistanceFactors:
     SHEAR: Final = 0.90
     #: Shear of rolled I-shaped webs with h/tw <= 2.24 sqrt(E/Fy) (Section G2.1(a)).
     SHEAR_ROLLED_I: Final = 1.00
+    #: Tension rupture and shear rupture of bolts and threaded parts (Section J3.7).
+    BOLT_RUPTURE: Final = 0.75
+    #: Combined tension and shear in bearing-type connections (Section J3.8).
+    BOLT_COMBINED: Final = 0.75
+    #: Slip resistance, standard and short-slotted holes perpendicular to the load (Section J3.9(a)).
+    SLIP_STANDARD: Final = 1.00
+    #: Slip resistance, oversized and short-slotted holes parallel to the load (Section J3.9(b)).
+    SLIP_OVERSIZED: Final = 0.85
+    #: Slip resistance, long-slotted holes (Section J3.9(c)).
+    SLIP_LONG_SLOT: Final = 0.70
+    #: Bearing and tearout strength at bolt holes (Section J3.11).
+    BEARING_TEAROUT: Final = 0.75
