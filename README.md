@@ -24,17 +24,22 @@ box = BuiltUpBox(Ht=Q_(12, "in"), B=Q_(10, "in"), tf=Q_(0.5, "in"), tw=Q_(0.5, "
 Tests: `uv run pytest`
 
 ```python
-from steel_design.classification import classify_flexure, classify_compression
-classify_flexure(w)["flange"].classification     # Slenderness.NONCOMPACT (Table B4.1b)
-classify_compression(w).governing                # Slenderness.NONSLENDER (Table B4.1a)
+w.flexure_slenderness_x["flange"].classification   # Slenderness.NONCOMPACT (Table B4.1b)
+w.flexure_slenderness_y.governing                  # weak-axis flexure
+w.compression_slenderness.governing                # Slenderness.NONSLENDER (Table B4.1a)
 ```
+
+Slenderness is a property of every section; `w.classify_flexure(axis)` and `w.classify_compression()`
+are the underlying methods. Each shape class declares its AISC database properties (with units and
+definitions) so they appear in the API docs and IDE completion.
 
 Classification covers every shape class: rolled I-shapes (W, M, S, HP), channels, tees, angles
 (single and double), rectangular and round HSS, pipe, and built-up I-shapes and boxes. Limits and
 case numbers were checked against AISC 360-22 Tables B4.1a and B4.1b.
 
 Notes on classification options:
-- Singly symmetric built-up I-shapes: `classify_flexure(mono, compression_flange="top" | "bottom")` selects the
+- Singly symmetric built-up I-shapes: `mono.classify_flexure("x", compression_flange="top" | "bottom")` (or the `flexure_slenderness_x` /
+  `flexure_slenderness_x_bottom` properties) selects the
   flange in major-axis compression (Case 11 flange with FL from Sxt/Sxc, Case 16 web).
 - Double angles: `DoubleAngle(label, continuous_contact=True)` uses Table B4.1a Case 1 (0.56); the default
   (separators) uses Case 3 (0.45).

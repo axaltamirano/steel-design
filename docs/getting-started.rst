@@ -18,11 +18,10 @@ Quick example
 
    from steel_design import Q_
    from steel_design.sections import get_shape
-   from steel_design.classification import classify_flexure
 
    w = get_shape("W14X90")            # default material: A992
    w.Ix                               # <Quantity(999.0, 'inch ** 4')>
-   classify_flexure(w).governing      # Slenderness.NONCOMPACT (flange)
+   w.flexure_slenderness_x.governing  # Slenderness.NONCOMPACT (flange)
 
 Building the documentation
 --------------------------

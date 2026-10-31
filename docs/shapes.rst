@@ -37,7 +37,9 @@ Each family is its own class in its own module, subclassing
    w.Zx, w.bf_2tf, w.h_tw
    get_shape("HSS6X6X1/4")            # family found automatically
 
-Properties use AISC names with ``/`` replaced by ``_`` (``h/tw`` becomes
+Each class declares every property of its family (name, type and definition with units),
+so they appear in the :doc:`API reference <api>` and in IDE completion. A test checks that the
+declarations match the CSV columns. Properties use AISC names with ``/`` replaced by ``_`` (``h/tw`` becomes
 ``h_tw``), ``W`` becomes ``weight`` and ``tan(α)`` becomes ``tan_alpha``. Values
 with units are pint quantities; absent values are ``None``.
 Labels are case-insensitive; ``Family.labels()`` lists them.
