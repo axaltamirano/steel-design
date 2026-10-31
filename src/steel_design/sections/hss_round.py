@@ -4,11 +4,17 @@ from __future__ import annotations
 
 from pint import Quantity
 
-from steel_design.classification import SectionClassification
-from steel_design.sections.shape_groups import RoundTubeShape
+from steel_design.classification import (
+    check_axis,
+    compression_element,
+    E_Fy,
+    flexure_element,
+    SectionClassification,
+)
+from steel_design.sections.database import DatabaseShape
 
 
-class HSSRound(RoundTubeShape):
+class HSSRound(DatabaseShape):
     """Round HSS, e.g. ``HSS6.000X0.250``."""
 
     family = "HSS_ROUND"
@@ -52,8 +58,14 @@ class HSSRound(RoundTubeShape):
 
     def classify_compression(self) -> SectionClassification:
         """Wall Case 9 (0.11 E/Fy) (Table B4.1a)."""
-        return super().classify_compression()
+        return SectionClassification(
+            (compression_element("wall", self.D_t, 0.11 * E_Fy(self.material), "Table B4.1a Case 9"),)
+        )
 
     def classify_flexure(self, axis: str = "x") -> SectionClassification:
         """Wall Case 20 (0.07 and 0.31 E/Fy); independent of axis (Table B4.1b)."""
-        return super().classify_flexure(axis)
+        check_axis(axis)
+        e = E_Fy(self.material)
+        return SectionClassification(
+            (flexure_element("wall", self.D_t, 0.07 * e, 0.31 * e, "Table B4.1b Case 20"),)
+        )

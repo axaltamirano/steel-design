@@ -22,9 +22,6 @@ API reference
 .. automodule:: steel_design.sections.base
    :members:
 
-.. automodule:: steel_design.sections.shape_groups
-   :members:
-
 .. automodule:: steel_design.sections.built_up_wide_flange
    :members:
 

@@ -4,11 +4,17 @@ from __future__ import annotations
 
 from pint import Quantity
 
-from steel_design.classification import SectionClassification
-from steel_design.sections.shape_groups import ChannelShape
+from steel_design.classification import (
+    check_axis,
+    compression_element,
+    flexure_element,
+    SectionClassification,
+    sqrt_E_Fy,
+)
+from steel_design.sections.database import DatabaseShape
 
 
-class MChannel(ChannelShape):
+class MChannel(DatabaseShape):
     """Miscellaneous channel (MC), e.g. ``MC12X31``."""
 
     family = "MC"
@@ -108,8 +114,26 @@ class MChannel(ChannelShape):
 
     def classify_compression(self) -> SectionClassification:
         """Flange Case 1 (0.56 sqrt(E/Fy)) and web Case 5 (1.49 sqrt(E/Fy)) (Table B4.1a)."""
-        return super().classify_compression()
+        r = sqrt_E_Fy(self.material)
+        return SectionClassification(
+            (
+                compression_element("flange", self.b_t, 0.56 * r, "Table B4.1a Case 1"),
+                compression_element("web", self.h_tw, 1.49 * r, "Table B4.1a Case 5"),
+            )
+        )
 
     def classify_flexure(self, axis: str = "x") -> SectionClassification:
-        """Major axis: flange Case 10 and web Case 15. Minor axis: flange Case 13 only (Table B4.1b)."""
-        return super().classify_flexure(axis)
+        """Major axis: flange Case 10 (0.38 and 1.0 sqrt(E/Fy)) and web Case 15 (3.76 and 5.70
+        sqrt(E/Fy)). Minor axis: flange Case 13 only (Table B4.1b)."""
+        axis = check_axis(axis)
+        r = sqrt_E_Fy(self.material)
+        if axis == "y":  # minor-axis bending: the web is not in flexure
+            return SectionClassification(
+                (flexure_element("flange", self.b_t, 0.38 * r, 1.0 * r, "Table B4.1b Case 13"),)
+            )
+        return SectionClassification(
+            (
+                flexure_element("flange", self.b_t, 0.38 * r, 1.0 * r, "Table B4.1b Case 10"),
+                flexure_element("web", self.h_tw, 3.76 * r, 5.70 * r, "Table B4.1b Case 15"),
+            )
+        )

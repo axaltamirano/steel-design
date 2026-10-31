@@ -4,12 +4,18 @@ from __future__ import annotations
 
 from pint import Quantity
 
-from steel_design.classification import SectionClassification, compression_element, sqrt_E_Fy
+from steel_design.classification import (
+    check_axis,
+    compression_element,
+    flexure_element,
+    SectionClassification,
+    sqrt_E_Fy,
+)
 from steel_design.materials.base import SteelMaterial
-from steel_design.sections.shape_groups import AngleShape
+from steel_design.sections.database import DatabaseShape
 
 
-class DoubleAngle(AngleShape):
+class DoubleAngle(DatabaseShape):
     """Double angles, back to back (2L), one database row per back-to-back spacing and
     configuration, e.g. ``2L4X4X1/2X3/8LLBB``.
 
@@ -80,5 +86,10 @@ class DoubleAngle(AngleShape):
         return SectionClassification((compression_element("leg", self.b_t, limit, ref),))
 
     def classify_flexure(self, axis: str = "x") -> SectionClassification:
-        """Leg Case 12 (0.54 and 0.91 sqrt(E/Fy)) (Table B4.1b)."""
-        return super().classify_flexure(axis)
+        """Leg Case 12 (0.54 and 0.91 sqrt(E/Fy)) (Table B4.1b). Double angles reuse the
+        single-angle limits."""
+        check_axis(axis)
+        r = sqrt_E_Fy(self.material)
+        return SectionClassification(
+            (flexure_element("leg", self.b_t, 0.54 * r, 0.91 * r, "Table B4.1b Case 12"),)
+        )

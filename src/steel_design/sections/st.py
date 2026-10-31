@@ -4,11 +4,17 @@ from __future__ import annotations
 
 from pint import Quantity
 
-from steel_design.classification import SectionClassification
-from steel_design.sections.shape_groups import TeeShape
+from steel_design.classification import (
+    check_axis,
+    compression_element,
+    flexure_element,
+    SectionClassification,
+    sqrt_E_Fy,
+)
+from steel_design.sections.database import DatabaseShape
 
 
-class ST(TeeShape):
+class ST(DatabaseShape):
     """Tee cut from an S-shape (ST), e.g. ``ST6X20.4``."""
 
     family = "ST"
@@ -80,8 +86,22 @@ class ST(TeeShape):
 
     def classify_compression(self) -> SectionClassification:
         """Flange Case 1 (0.56 sqrt(E/Fy)) and stem Case 4 (0.75 sqrt(E/Fy)) (Table B4.1a)."""
-        return super().classify_compression()
+        r = sqrt_E_Fy(self.material)
+        return SectionClassification(
+            (
+                compression_element("flange", self.bf_2tf, 0.56 * r, "Table B4.1a Case 1"),
+                compression_element("stem", self.D_t, 0.75 * r, "Table B4.1a Case 4"),
+            )
+        )
 
     def classify_flexure(self, axis: str = "x") -> SectionClassification:
-        """Flange Case 10 and stem Case 14 (0.84 and 1.52 sqrt(E/Fy)) about the x-axis (Section F9); the y-axis checks the flange only (Table B4.1b)."""
-        return super().classify_flexure(axis)
+        """Flange Case 10 and stem Case 14 (0.84 and 1.52 sqrt(E/Fy)) about the x-axis (Section
+        F9), where the stem limit applies when the stem is in flexural compression. The y-axis
+        checks the flange only (Table B4.1b)."""
+        axis = check_axis(axis)
+        r = sqrt_E_Fy(self.material)
+        flange = flexure_element("flange", self.bf_2tf, 0.38 * r, 1.0 * r, "Table B4.1b Case 10")
+        if axis == "y":
+            return SectionClassification((flange,))
+        stem = flexure_element("stem", self.D_t, 0.84 * r, 1.52 * r, "Table B4.1b Case 14")
+        return SectionClassification((flange, stem))

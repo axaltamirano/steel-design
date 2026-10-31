@@ -15,7 +15,7 @@ B4.1a and B4.1b) against the Fy of its material. The results are properties of t
 
 The properties call :meth:`~steel_design.sections.base.Section.classify_compression` and
 :meth:`~steel_design.sections.base.Section.classify_flexure`, which each shape class
-implements (shared groups live in :mod:`steel_design.sections.shape_groups`). Compression
+implements explicitly, with the Table B4 cases and limits written out in each class. Compression
 gives *nonslender* or *slender* per element; flexure gives *compact*, *noncompact* or
 *slender*. Results are a :class:`~steel_design.classification.SectionClassification`; each
 element carries its ratio, limits, result and Table B4 case reference. Properties are
