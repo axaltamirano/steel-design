@@ -1,4 +1,13 @@
-"""Check an eccentrically loaded bracket bolt group by the ICR method (LRFD)."""
+"""Check an eccentrically loaded bracket bolt group by the ICR method (LRFD) and plot it.
+
+The plot needs matplotlib, an optional dependency (`uv sync` or `pip install steel-design[plot]`).
+"""
+
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
 
 from steel_design import Q_
 from steel_design.bolts import A325, Bolt, BoltGroup, Ply, SlipClass
@@ -28,3 +37,9 @@ print(f"C = {result.C:.2f}, phi Pn = {result.Pn:~P.1f}, Pu / phi Pn = {group.che
 print(f"At 30 degrees: C = {group.icr_coefficient(e, angle=30):.2f}")
 odd = BoltGroup([(Q_(x, "in"), Q_(y, "in")) for x, y in [(0, 0), (3, 0), (6, 0), (0, 4), (6, 4)]], bolt)
 print(f"Arbitrary group, load at (9, 2) in.: phi Pn = {odd.icr_strength((Q_(9, 'in'), Q_(2, 'in'))).Pn:~P.1f}")
+
+# Plot the group, load line, eccentricity, ICR and bolt forces for the inclined load
+ax = group.plot(e=e, angle=30)
+out = Path(__file__).with_name("05_bracket_bolt_group.png")
+ax.figure.savefig(out, dpi=150, bbox_inches="tight")
+print(f"Saved {out.name}")

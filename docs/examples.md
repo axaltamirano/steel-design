@@ -41,17 +41,10 @@ F4, and shear with and without transverse stiffeners (tension field action).
 
 ## Bracket bolt group: ICR
 
-Single-bolt strengths, bearing and tearout, and the ICR strength of a bolt group for a vertical
-and an inclined eccentric load.
+Single-bolt strengths, bearing and tearout, the ICR strength of a bolt group for a vertical
+and an inclined eccentric load, and an image of the group (needs the optional matplotlib
+dependency).
 
 ```{literalinclude} ../examples/05_bracket_bolt_group.py
-:language: python
-```
-
-## Plotting a bolt group
-
-Saves an image of an eccentrically loaded group (needs the optional matplotlib dependency).
-
-```{literalinclude} ../examples/06_bolt_group_plot.py
 :language: python
 ```
