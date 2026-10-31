@@ -120,3 +120,51 @@ def test_declared_properties_match_database_columns():
         declared = {k for c in cls.__mro__ for k in typing.get_type_hints(c, include_extras=False) if not k.startswith("_")}
         declared -= {"name", "family", "material"}
         assert declared == set(cls.properties()), (fam, declared ^ set(cls.properties()))
+
+
+def _box(inset=None):
+    i = lambda x: Q_(x, "in")
+    return BuiltUpBox(i(12), i(10), i(0.5), i(0.375), inset_web_PL=None if inset is None else i(inset))
+
+
+def test_box_inset_zero_matches_default():
+    flush = _box()
+    zero = _box(0)
+    for prop in ("A", "Ix", "Iy", "Zx", "Zy", "J", "b"):
+        assert getattr(zero, prop) == getattr(flush, prop)
+    assert flush.Iy.m == pytest.approx((12 * 10**3 - 11 * 9.25**3) / 12)
+
+
+def test_box_inset_section_properties():
+    box = _box(1)
+    h, tw, tf, B, Ht = 11.0, 0.375, 0.5, 10.0, 12.0
+    offset = (B - 2 - tw) / 2
+    assert box.b.m == pytest.approx(B - 2 - 2 * tw)
+    assert box.A.m == pytest.approx(2 * B * tf + 2 * h * tw)
+    assert box.Ix.m == pytest.approx(414.0208333)
+    assert box.Iy.m == pytest.approx(2 * tf * B**3 / 12 + 2 * (h * tw**3 / 12 + h * tw * offset**2))
+    assert box.Zx.m == pytest.approx(80.1875)
+    assert box.Zy.m == pytest.approx(tf * B**2 / 2 + tw * h * 2 * offset)
+    assert box.Sy.m == pytest.approx(2 * box.Iy.m / B)
+    # Bredt closed cell plus four open overhangs
+    ab = 2 * offset * (Ht - tf)
+    closed = 4 * ab**2 / (2 * 2 * offset / tf + 2 * (Ht - tf) / tw)
+    assert box.J.m == pytest.approx(closed + 4 * 1 * tf**3 / 3)
+    assert box.Iy < _box().Iy
+
+
+def test_box_inset_adds_overhang_element():
+    box = _box(1)
+    overhang = box.compression_slenderness["flange overhang"]
+    assert overhang.ratio == pytest.approx(2.0)
+    assert [e.name for e in box.slender_elements()][-1] == "flange overhang"
+    assert "flange overhang" not in [e.element for e in _box().compression_slenderness.elements]
+
+
+def test_box_inset_validation_and_flexure():
+    with pytest.raises(ValueError):
+        _box(-1)
+    with pytest.raises(ValueError):
+        _box(4.7)
+    with pytest.raises(NotImplementedError):
+        _box(1).flexure_strength("x", Lb=Q_(10, "ft"))

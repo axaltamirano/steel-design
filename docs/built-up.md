@@ -26,3 +26,14 @@ doubly symmetric sections.
 {class}`~steel_design.sections.built_up_box.BuiltUpBox` is a doubly symmetric box of
 four plates (outside depth `Ht` and width `B`, flange thickness `tf`, web
 thickness `tw`). `J` uses Bredt's formula and `Cw` is zero.
+
+The optional `inset_web_PL` argument moves each web plate inward from the flange edge by
+that distance, so each flange plate overhangs the web. The area, `Iy`, `Zy`, `J`, the clear
+flange width `b` and the compression slenderness (a `"flange overhang"` element) reflect the
+inset; `Ix` and `Zx` are unchanged. Flexural strength is not available for inset webs and
+raises `NotImplementedError`.
+
+```python
+box = BuiltUpBox(Q_(12, "in"), Q_(10, "in"), Q_(0.5, "in"), Q_(0.375, "in"),
+                 inset_web_PL=Q_(1, "in"))
+```
