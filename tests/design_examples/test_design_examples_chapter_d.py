@@ -1,7 +1,23 @@
-"""AISC Design Examples v16.0, Chapter D (tension), LRFD results.
+"""Tests based on the AISC Design Examples, Chapter D (Design of Members for Tension).
 
-The library takes the net area and shear lag factor as inputs, so each test derives ``An`` and
-``U`` from the example's own formulas (Spec. B4.3b and Table D3.1) and checks the strengths.
+Source: *AISC Design Examples, Version 16.0* (the companion to the 16th Edition Steel
+Construction Manual and AISC 360-22), Chapter D. The PDF is not distributed with this
+repository (``reference/`` is git-ignored).
+
+Conventions:
+
+* Each test is named after the example it reproduces, for example
+  ``test_example_d1...`` for Example D.1, and its docstring gives the example title.
+* Only the LRFD results are checked; the library does not implement ASD.
+* Expected values are the numbers printed in the example. The examples round intermediate
+  values and some read the Manual tables, so tolerances are small absolute or relative bands
+  rather than exact matches. Tests named ``..._table`` or marked as approximate compare against
+  tabulated or interpolated values.
+* Section properties come from the AISC Shapes Database v16.0 used by the library, not from the
+  rounded values printed in the examples.
+* The library takes the net area ``An`` and the shear lag factor ``U`` as inputs, so each
+  test computes them from the example's own formulas (Spec. B4.3b and Table D3.1) and passes
+  them in.
 """
 
 import pytest
@@ -27,6 +43,7 @@ def _kips(q):
 
 
 def test_example_d1_w_shape_tension_member():
+    """Example D.1, W-shape tension member (W8X21, A992, bolted flanges)."""
     pu = 1.2 * 30 + 1.6 * 90
     w = WideFlange("W8X21", A992)
     assert w.A.m == pytest.approx(6.16)
@@ -59,6 +76,7 @@ def test_example_d1_w_shape_tension_member():
 
 
 def test_example_d2_single_angle_tension_member():
+    """Example D.2, single angle tension member (L4X4X1/2, A572 Gr. 50, bolted)."""
     pu = 1.2 * 20 + 1.6 * 60
     a = Angle("L4X4X1/2", A572Gr50)
     assert a.rz.m == pytest.approx(0.776)
@@ -88,6 +106,7 @@ def test_example_d2_single_angle_tension_member():
 
 
 def test_example_d3_wt_shape_tension_member():
+    """Example D.3, WT-shape tension member (WT6X20, A992, welded flange)."""
     pu = 1.2 * 40 + 1.6 * 120
     wt = WT("WT6X20", A992)
 
@@ -111,6 +130,7 @@ def test_example_d3_wt_shape_tension_member():
 
 
 def test_example_d6_double_angle_tension_member():
+    """Example D.6, double angle tension member (2L4X4X1/2, 3/8 in. separation, bolted)."""
     pu = 1.2 * 40 + 1.6 * 120
     da = DoubleAngle("2L4X4X1/2X3/8", A572Gr50)  # 3/8-in. separation
     assert da.A.m == pytest.approx(7.50)
