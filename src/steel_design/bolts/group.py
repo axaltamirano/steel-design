@@ -294,6 +294,38 @@ class BoltGroup:
         capacity = self.icr_strength_eccentric(e, angle, **options).Pn
         return float((Pu / capacity).to("dimensionless").magnitude)
 
+    def plot(self, e=None, angle: float = 0.0, load_point=None, ax=None, show_forces: bool = True, **options):
+        """Draw the group with the load line, the eccentricity, the ICR and the bolt forces.
+
+        Pass either ``e`` (eccentricity from the centroid, as in :meth:`icr_strength_eccentric`)
+        or ``load_point`` (as in :meth:`icr_strength`); with neither, only the layout is drawn.
+        Requires matplotlib (``pip install steel-design[plot]``).
+
+        Args:
+            e: Eccentricity of the load line from the centroid.
+            angle: Load angle from the vertical, degrees.
+            load_point: ``(x, y)`` of a point on the line of action.
+            ax: Matplotlib axes to draw on; a new figure when omitted.
+            show_forces: Draw the force on each bolt.
+            **options: Passed to :meth:`icr_strength` (``delta_max``, ``mu``, ``lam``).
+
+        Returns:
+            The matplotlib axes. Use ``ax.figure.savefig("group.png")`` to save.
+        """
+        from steel_design.bolts.plotting import plot_bolt_group
+
+        if e is not None and load_point is not None:
+            raise ValueError("Give either e or load_point, not both")
+        result = None
+        if e is not None:
+            e = require_length(e, "e")
+            u = _direction(angle)
+            xc, yc = self.centroid
+            load_point = (xc + e * -u[1], yc + e * u[0])
+        if load_point is not None:
+            result = self.icr_strength(load_point, angle, **options)
+        return plot_bolt_group(self, result, load_point, angle, ax, show_forces)
+
     def __repr__(self) -> str:
         return f"<BoltGroup {self.n} x {self.bolt!r}>"
 

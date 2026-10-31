@@ -78,6 +78,8 @@ bolt.get_phiRnv()                         # shear rupture, threads included
 # 4x2 bolt group, 3" spacing, vertical load 6" from the centroid (instantaneous center of rotation)
 group = BoltGroup.grid(4, 2, Q_(3, "in"), Q_(3, "in"), bolt)
 group.icr_strength_eccentric(Q_(6, "in")).Pn
+
+group.plot(e=Q_(6, "in"), angle=20)       # image of the group, load line, eccentricity and ICR (pip install steel-design[plot])
 ```
 
 ## Examples

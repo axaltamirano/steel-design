@@ -16,6 +16,11 @@ dependencies = [
 [project.scripts]
 steel-design = "steel_design:main"
 
+[project.optional-dependencies]
+plot = [
+    "matplotlib>=3.9",
+]
+
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14.0"]
 build-backend = "uv_build"
@@ -23,6 +28,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "furo>=2025.12.19",
+    "matplotlib>=3.9",
     "myst-parser>=5.1.0",
     "openpyxl>=3.1.5",
     "pytest>=9.2.0",

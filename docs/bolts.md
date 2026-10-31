@@ -98,6 +98,21 @@ Notes:
   smallest clear distance a bolt can bear against.
 - Only in-plane eccentric shear is implemented. Prying action and eccentric tension are not.
 
+## Plotting
+
+`group.plot()` draws the bolts, the centroid, the load line with its arrow, the eccentricity,
+the ICR and the force on each bolt. It needs matplotlib, an optional dependency:
+`pip install steel-design[plot]` (or `uv sync --extra plot`).
+
+```python
+ax = group.plot(e=Q_(6, "in"), angle=20)       # or load_point=(x, y)
+ax.figure.savefig("group.png", dpi=150)
+```
+
+![Eccentrically loaded bolt group](_static/bolt_group.png)
+
+With neither `e` nor `load_point` only the layout is drawn. Pass `ax=` to draw on your own axes.
+
 ## Verification against the Manual
 
 The test suite compares the library with the 16th Edition Manual, Part 7:

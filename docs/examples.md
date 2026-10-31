@@ -47,3 +47,11 @@ and an inclined eccentric load.
 ```{literalinclude} ../examples/05_bracket_bolt_group.py
 :language: python
 ```
+
+## Plotting a bolt group
+
+Saves an image of an eccentrically loaded group (needs the optional matplotlib dependency).
+
+```{literalinclude} ../examples/06_bolt_group_plot.py
+:language: python
+```

@@ -374,3 +374,16 @@ def test_bearing_tearout_matches_manual_table_7_5(d, edge, expected):
     ply = Ply(i(1), Q_(65, "ksi"), lc_from_edge(i(edge), length))
     result = Bolt(i(d), A325).bearing_tearout_strength(ply)
     assert kips(result.design_strength) == pytest.approx(expected, abs=0.06)
+
+
+def test_plot_draws_group_load_and_eccentricity():
+    matplotlib = pytest.importorskip("matplotlib")
+    matplotlib.use("Agg")
+    group = BoltGroup.grid(4, 2, i(3), i(3), Bolt(i(0.75), A325))
+    ax = group.plot(e=i(6), angle=20)
+    assert len(ax.patches) == 8  # one circle per bolt
+    texts = [t.get_text() for t in ax.texts]
+    assert "e = 6.00 in." in texts and any(t.startswith("Pn = ") for t in texts) and "ICR" in texts
+    assert group.plot().patches  # layout only
+    with pytest.raises(ValueError):
+        group.plot(e=i(6), load_point=(i(6), i(0)))
