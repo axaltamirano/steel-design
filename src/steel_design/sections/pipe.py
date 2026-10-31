@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from pint import Quantity
 
+from steel_design.compression import (
+    flexural_buckling_mode,
+    round_hss_effective_area,
+)
 from steel_design.classification import (
     check_axis,
     compression_element,
@@ -61,6 +65,14 @@ class Pipe(DatabaseShape):
         return SectionClassification(
             (compression_element("wall", self.D_t, 0.11 * E_Fy(self.material), "Table B4.1a Case 9"),)
         )
+
+    def buckling_modes(self, Lcx, Lcy, Lcz):
+        """Flexural buckling (Eq. E3-4); the section is axisymmetric and torsion does not govern."""
+        return (flexural_buckling_mode("any axis", self.material.E, Lcx, self.rx),)
+
+    def effective_area(self, Fn):
+        """Effective area of round sections with slender walls (Eqs. E7-6 and E7-7)."""
+        return round_hss_effective_area(self.A, self.OD, self.tdes, self.material.E, self.material.Fy)
 
     def classify_flexure(self, axis: str = "x") -> SectionClassification:
         """Wall Case 20 (0.07 and 0.31 E/Fy); independent of axis (Table B4.1b)."""

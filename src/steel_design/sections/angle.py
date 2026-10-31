@@ -2,8 +2,18 @@
 
 from __future__ import annotations
 
+import math
+
 from pint import Quantity
 
+from steel_design.compression import (
+    BucklingMode,
+    OTHER_ELEMENTS,
+    flexural_buckling_mode,
+    single_angle_effective_slenderness,
+    slender_element,
+)
+from steel_design.units import require_length
 from steel_design.classification import (
     check_axis,
     compression_element,
@@ -27,9 +37,9 @@ class Angle(DatabaseShape):
     weight: Quantity
     #: Cross-sectional area, in.².
     A: Quantity
-    #: Width of the longer leg, in.
-    d: Quantity
     #: Width of the shorter leg, in.
+    d: Quantity
+    #: Width of the longer leg, in.
     b: Quantity
     #: Thickness of angle leg, in.
     t: Quantity
@@ -117,6 +127,51 @@ class Angle(DatabaseShape):
         return SectionClassification(
             (compression_element("leg", self.b_t, 0.45 * sqrt_E_Fy(self.material), "Table B4.1a Case 3"),)
         )
+
+    def buckling_modes(self, Lcx, Lcy, Lcz):
+        """Flexural buckling about the major (``Lcx``) and minor (``Lcz`` is unused, ``Lcy``)
+        principal axes (Eq. E3-4). Flexural-torsional buckling is not checked: it only matters
+        when ``b/t > 0.71 sqrt(E/Fy)``, and such an angle is slender, for which Section E7 takes
+        ``Fn`` from Section E3 only."""
+        E = self.material.E
+        return (
+            flexural_buckling_mode("major principal axis", E, Lcx, (self.Iw / self.A) ** 0.5),
+            flexural_buckling_mode("minor principal axis", E, Lcy, self.rz),
+        )
+
+    def slender_elements(self):
+        """Longer leg ``b`` and shorter leg ``d``, both unstiffened (Table E7.1 (c))."""
+        limit = self.compression_slenderness["leg"].limit_r
+        return (
+            slender_element("long leg", self.b, self.t, 1, limit, OTHER_ELEMENTS),
+            slender_element("short leg", self.d, self.t, 1, limit, OTHER_ELEMENTS),
+        )
+
+    def compression_strength(self, L, K: float = 1.0, e5: str | None = None, connected_leg: str = "long"):
+        """Compressive strength of a single angle (Chapter E).
+
+        Args:
+            L: Unbraced length (pint length). For ``e5`` it is the length between work points.
+            K: Effective length factor.
+            e5: ``None`` for flexural buckling about the principal axes with ``K L``, or use the
+                effective slenderness of Section E5: ``"planar"`` for individual members and
+                planar truss webs (E5(a)) or ``"box"`` for box and space truss webs (E5(b)).
+                The user is responsible for the E5 conditions on end connection and loading.
+            connected_leg: ``"long"`` or ``"short"`` leg connected, for ``e5``.
+
+        Raises:
+            ValueError: With ``e5``, if ``bl/bs >= 1.7`` or the effective slenderness exceeds 200.
+        """
+        L = require_length(L, "L")
+        if L.magnitude <= 0 or K <= 0:
+            raise ValueError("L and K must be positive")
+        if e5 is None:
+            return self._compression(self.buckling_modes(K * L, K * L, K * L))
+        ra = self.rx if connected_leg == "long" else self.ry
+        ratio = single_angle_effective_slenderness(L, ra, self.rz, self.b, self.d, e5, connected_leg)
+        Fe = math.pi**2 * self.material.E / ratio**2
+        eq = "Eq. E5-1/E5-2" if e5 == "planar" else "Eq. E5-3/E5-4"
+        return self._compression((BucklingMode("flexural buckling, effective slenderness", Fe.to("ksi"), eq, ratio),))
 
     def classify_flexure(self, axis: str = "x") -> SectionClassification:
         """Leg Case 12 (0.54 and 0.91 sqrt(E/Fy)) (Table B4.1b). Double angles reuse the

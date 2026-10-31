@@ -4,6 +4,14 @@ from __future__ import annotations
 
 from pint import Quantity
 
+from steel_design.compression import (
+    OTHER_ELEMENTS,
+    elastic_buckling_stress,
+    flexural_buckling_mode,
+    flexural_torsional_buckling_mode,
+    slender_element,
+)
+from steel_design.units import Q_
 from steel_design.classification import (
     check_axis,
     compression_element,
@@ -104,6 +112,24 @@ class WT(DatabaseShape):
                 compression_element("flange", self.bf_2tf, 0.56 * r, "Table B4.1a Case 1"),
                 compression_element("stem", self.D_t, 0.75 * r, "Table B4.1a Case 4"),
             )
+        )
+
+    def buckling_modes(self, Lcx, Lcy, Lcz):
+        """Flexural buckling about x (Eq. E3-4) and flexural-torsional buckling about the axis of
+        symmetry y (Eqs. E4-3 and E4-7), omitting the warping term as permitted for tees."""
+        E, G = self.material.E, self.material.G
+        Fey = elastic_buckling_stress(E, Lcy, self.ry)
+        return (
+            flexural_buckling_mode("x-axis", E, Lcx, self.rx),
+            flexural_torsional_buckling_mode(E, G, Q_(0, "in**6"), self.J, Lcz, self.A, self.ro, self.H, Fey),
+        )
+
+    def slender_elements(self):
+        """Flange (outstanding, b = bf/2) and stem (outstanding, b = d) for Section E7."""
+        c = self.compression_slenderness
+        return (
+            slender_element("flange", self.bf / 2, self.tf, 2, c["flange"].limit_r, OTHER_ELEMENTS),
+            slender_element("stem", self.d, self.tw, 1, c["stem"].limit_r, OTHER_ELEMENTS),
         )
 
     def classify_flexure(self, axis: str = "x") -> SectionClassification:

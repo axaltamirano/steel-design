@@ -5,6 +5,15 @@ from __future__ import annotations
 import math
 from functools import cached_property
 
+from steel_design.compression import (
+    OTHER_ELEMENTS,
+    STIFFENED_ELEMENTS,
+    elastic_buckling_stress,
+    flexural_buckling_mode,
+    flexural_torsional_buckling_mode,
+    slender_element,
+    torsional_buckling_mode,
+)
 from steel_design.classification import (
     SectionClassification,
     Slenderness,
@@ -298,6 +307,57 @@ class BuiltUpWideFlange(Section):
         if compression_flange == "bottom":
             return Q_(2 * (y - g["tb"]), "in")
         raise ValueError("compression_flange must be 'top' or 'bottom'")
+
+    @cached_property
+    def shear_center_offset(self):
+        """Distance ``yo`` from the centroid to the shear center, positive toward the top flange.
+        The shear center lies at ``ho It / (It + Ib)`` from the bottom flange centroid, using the
+        same flange inertias as :attr:`Cw`."""
+        g = self._g
+        iyw = g["h"] * g["tw"] ** 3 / 12
+        it = g["tt"] * g["bt"] ** 3 / 12 + iyw / 2
+        ib = g["tb"] * g["bb"] ** 3 / 12 + iyw / 2
+        return Q_(g["tb"] / 2 + self.ho.m * it / (it + ib) - self._ybar, "in")
+
+    @cached_property
+    def ro(self):
+        """Polar radius of gyration about the shear center, ``sqrt(yo^2 + (Ix + Iy)/A)``."""
+        return ((self.shear_center_offset**2 + (self.Ix + self.Iy) / self.A) ** 0.5).to("in")
+
+    @cached_property
+    def H(self):
+        """Flexural constant, ``1 - yo^2/ro^2``."""
+        return float(1 - (self.shear_center_offset / self.ro) ** 2)
+
+    def buckling_modes(self, Lcx, Lcy, Lcz):
+        """Flexural buckling about x and y (Eq. E3-4) plus torsional buckling (Eq. E4-2) when
+        doubly symmetric, or flexural-torsional buckling about the axis of symmetry y
+        (Eqs. E4-3 and E4-7) when singly symmetric."""
+        E, G = self.material.E, self.material.G
+        modes = [flexural_buckling_mode("x-axis", E, Lcx, self.rx)]
+        if self.is_doubly_symmetric:
+            modes.append(flexural_buckling_mode("y-axis", E, Lcy, self.ry))
+            modes.append(torsional_buckling_mode(E, G, self.Cw, self.J, Lcz, self.Ix, self.Iy))
+        else:
+            Fey = elastic_buckling_stress(E, Lcy, self.ry)
+            modes.append(
+                flexural_torsional_buckling_mode(E, G, self.Cw, self.J, Lcz, self.A, self.ro, self.H, Fey)
+            )
+        return tuple(modes)
+
+    def slender_elements(self):
+        """Flanges (outstanding, Table E7.1 (c)) and web (``h``, stiffened, Table E7.1 (a))."""
+        c = self.compression_slenderness
+        if self.is_doubly_symmetric:
+            return (
+                slender_element("flange", self.bf / 2, self.tf, 4, c["flange"].limit_r, OTHER_ELEMENTS),
+                slender_element("web", self.h, self.tw, 1, c["web"].limit_r, STIFFENED_ELEMENTS),
+            )
+        return (
+            slender_element("top flange", self.bf / 2, self.tf, 2, c["top flange"].limit_r, OTHER_ELEMENTS),
+            slender_element("bottom flange", self.bf_bottom / 2, self.tf_bottom, 2, c["bottom flange"].limit_r, OTHER_ELEMENTS),
+            slender_element("web", self.h, self.tw, 1, c["web"].limit_r, STIFFENED_ELEMENTS),
+        )
 
     def classify_compression(self) -> SectionClassification:
         """Flange Case 2 (0.64 sqrt(kc E/Fy)) of Table B4.1a.

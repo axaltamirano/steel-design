@@ -17,6 +17,7 @@ with `pint <https://pint.readthedocs.io>`_.
    built-up
    classification
    tension
+   compression
 
 .. toctree::
    :maxdepth: 2

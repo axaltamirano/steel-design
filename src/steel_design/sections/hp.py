@@ -4,6 +4,13 @@ from __future__ import annotations
 
 from pint import Quantity
 
+from steel_design.compression import (
+    OTHER_ELEMENTS,
+    STIFFENED_ELEMENTS,
+    flexural_buckling_mode,
+    slender_element,
+    torsional_buckling_mode,
+)
 from steel_design.classification import (
     check_axis,
     compression_element,
@@ -108,6 +115,23 @@ class HP(DatabaseShape):
                 compression_element("flange", self.bf_2tf, 0.56 * r, "Table B4.1a Case 1"),
                 compression_element("web", self.h_tw, 1.49 * r, "Table B4.1a Case 5"),
             )
+        )
+
+    def buckling_modes(self, Lcx, Lcy, Lcz):
+        """Flexural buckling about x and y (Eq. E3-4) and torsional buckling (Eq. E4-2)."""
+        E, G = self.material.E, self.material.G
+        return (
+            flexural_buckling_mode("x-axis", E, Lcx, self.rx),
+            flexural_buckling_mode("y-axis", E, Lcy, self.ry),
+            torsional_buckling_mode(E, G, self.Cw, self.J, Lcz, self.Ix, self.Iy),
+        )
+
+    def slender_elements(self):
+        """Flanges (outstanding, b = bf/2) and web (stiffened, b = h) for Section E7."""
+        c = self.compression_slenderness
+        return (
+            slender_element("flange", self.bf / 2, self.tf, 4, c["flange"].limit_r, OTHER_ELEMENTS),
+            slender_element("web", self.h_tw * self.tw, self.tw, 1, c["web"].limit_r, STIFFENED_ELEMENTS),
         )
 
     def classify_flexure(self, axis: str = "x") -> SectionClassification:

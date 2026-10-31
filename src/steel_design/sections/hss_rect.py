@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from pint import Quantity
 
+from steel_design.compression import (
+    HSS_WALLS,
+    flexural_buckling_mode,
+    slender_element,
+)
 from steel_design.classification import (
     SectionClassification,
     check_axis,
@@ -72,6 +77,22 @@ class HSSRect(DatabaseShape):
                 compression_element("short wall", self.b_tdes, limit, "Table B4.1a Case 6"),
                 compression_element("long wall", self.h_tdes, limit, "Table B4.1a Case 6"),
             )
+        )
+
+    def buckling_modes(self, Lcx, Lcy, Lcz):
+        """Flexural buckling about x and y (Eq. E3-4); torsion does not govern closed sections."""
+        E = self.material.E
+        return (
+            flexural_buckling_mode("x-axis", E, Lcx, self.rx),
+            flexural_buckling_mode("y-axis", E, Lcy, self.ry),
+        )
+
+    def slender_elements(self):
+        """Clear walls ``b`` and ``h`` with the HSS factors of Table E7.1."""
+        limit = self.compression_slenderness["short wall"].limit_r
+        return (
+            slender_element("short wall", self.b_tdes * self.tdes, self.tdes, 2, limit, HSS_WALLS),
+            slender_element("long wall", self.h_tdes * self.tdes, self.tdes, 2, limit, HSS_WALLS),
         )
 
     def classify_flexure(self, axis: str = "x") -> SectionClassification:

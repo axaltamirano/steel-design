@@ -4,6 +4,14 @@ from __future__ import annotations
 
 from pint import Quantity
 
+from steel_design.compression import (
+    OTHER_ELEMENTS,
+    STIFFENED_ELEMENTS,
+    elastic_buckling_stress,
+    flexural_buckling_mode,
+    flexural_torsional_buckling_mode,
+    slender_element,
+)
 from steel_design.classification import (
     check_axis,
     compression_element,
@@ -120,6 +128,24 @@ class MChannel(DatabaseShape):
                 compression_element("flange", self.b_t, 0.56 * r, "Table B4.1a Case 1"),
                 compression_element("web", self.h_tw, 1.49 * r, "Table B4.1a Case 5"),
             )
+        )
+
+    def buckling_modes(self, Lcx, Lcy, Lcz):
+        """Flexural buckling about y (Eq. E3-4) and flexural-torsional buckling about the axis of
+        symmetry x (Eqs. E4-3 and E4-7), using the database ``ro``, ``H``, ``Cw`` and ``J``."""
+        E, G = self.material.E, self.material.G
+        Fex = elastic_buckling_stress(E, Lcx, self.rx)
+        return (
+            flexural_buckling_mode("y-axis", E, Lcy, self.ry),
+            flexural_torsional_buckling_mode(E, G, self.Cw, self.J, Lcz, self.A, self.ro, self.H, Fex),
+        )
+
+    def slender_elements(self):
+        """Flanges (outstanding, b = bf) and web (stiffened, b = h) for Section E7."""
+        c = self.compression_slenderness
+        return (
+            slender_element("flange", self.bf, self.tf, 2, c["flange"].limit_r, OTHER_ELEMENTS),
+            slender_element("web", self.h_tw * self.tw, self.tw, 1, c["web"].limit_r, STIFFENED_ELEMENTS),
         )
 
     def classify_flexure(self, axis: str = "x") -> SectionClassification:

@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from functools import cached_property
 
+from steel_design.compression import (
+    STIFFENED_ELEMENTS,
+    flexural_buckling_mode,
+    slender_element,
+)
 from steel_design.classification import (
     SectionClassification,
     check_axis,
@@ -152,6 +157,22 @@ class BuiltUpBox(Section):
                 compression_element("flange", self.b_tf, limit, "Table B4.1a Case 8"),
                 compression_element("web", self.h_tw, limit, "Table B4.1a Case 8"),
             )
+        )
+
+    def buckling_modes(self, Lcx, Lcy, Lcz):
+        """Flexural buckling about x and y (Eq. E3-4); torsion does not govern closed sections."""
+        E = self.material.E
+        return (
+            flexural_buckling_mode("x-axis", E, Lcx, self.rx),
+            flexural_buckling_mode("y-axis", E, Lcy, self.ry),
+        )
+
+    def slender_elements(self):
+        """Flange plates (width ``b``) and web plates (width ``h``), stiffened (Table E7.1 (a))."""
+        limit = self.compression_slenderness["flange"].limit_r
+        return (
+            slender_element("flange", self.b, self.tf, 2, limit, STIFFENED_ELEMENTS),
+            slender_element("web", self.h, self.tw, 2, limit, STIFFENED_ELEMENTS),
         )
 
     def classify_flexure(self, axis: str = "x") -> SectionClassification:

@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
-from steel_design.classification import SectionClassification
+from steel_design.classification import SectionClassification, Slenderness
+from steel_design.compression import (
+    BucklingMode,
+    CompressionStrength,
+    EffectiveArea,
+    SlenderElement,
+    compression_strength,
+    effective_lengths,
+    reduce_slender_elements,
+)
 from steel_design.materials.base import SteelMaterial
 from steel_design.tension import TensionStrength, slenderness_ratio, tension_strength
 
@@ -72,3 +81,47 @@ class Section:
         """
         radii = [getattr(self, n, None) for n in ("rx", "ry", "rz")]
         return slenderness_ratio(length, min(r for r in radii if r is not None))
+
+    def buckling_modes(self, Lcx, Lcy, Lcz) -> tuple[BucklingMode, ...]:
+        """Elastic buckling modes to check in compression (Sections E3 and E4).
+
+        Args:
+            Lcx: Effective length for buckling about the x-axis.
+            Lcy: Effective length for buckling about the y-axis.
+            Lcz: Effective length for twist.
+
+        Raises:
+            NotImplementedError: If the section type does not implement it.
+        """
+        raise NotImplementedError(f"Compression not implemented for {type(self).__name__}")
+
+    def slender_elements(self) -> tuple[SlenderElement, ...]:
+        """Plate elements reduced by Section E7 when the section has slender elements.
+
+        Raises:
+            NotImplementedError: If the section type does not implement it.
+        """
+        raise NotImplementedError(f"Compression not implemented for {type(self).__name__}")
+
+    def effective_area(self, Fn) -> EffectiveArea:
+        """Effective area ``Ae`` for a nominal stress ``Fn`` (Section E7.1)."""
+        return reduce_slender_elements(self.A, self.slender_elements(), self.material.Fy, Fn)
+
+    def compression_strength(self, Lx, Ly=None, Lz=None, Kx: float = 1.0, Ky: float = 1.0, Kz: float = 1.0) -> CompressionStrength:
+        """Compressive strength per AISC 360-22 Chapter E: flexural (E3), torsional and
+        flexural-torsional (E4) buckling, with the slender-element reduction of Section E7.
+
+        Args:
+            Lx: Unbraced length for buckling about the x-axis (pint length).
+            Ly: Unbraced length for buckling about the y-axis; defaults to ``Lx``.
+            Lz: Unbraced length for twist; defaults to ``Ly``.
+            Kx: Effective length factor for the x-axis.
+            Ky: Effective length factor for the y-axis.
+            Kz: Effective length factor for twist.
+        """
+        Lcx, Lcy, Lcz = effective_lengths(Lx, Ly, Lz, Kx, Ky, Kz)
+        return self._compression(self.buckling_modes(Lcx, Lcy, Lcz))
+
+    def _compression(self, modes) -> CompressionStrength:
+        slender = self.compression_slenderness.governing == Slenderness.SLENDER
+        return compression_strength(self.A, self.material, modes, self.effective_area if slender else None, slender)
