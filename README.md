@@ -29,6 +29,10 @@ Compression (AISC 360-22 Chapter E): `w.compression_strength(Lx=Q_(10, "ft"), Ly
 flexural (E3), torsional and flexural-torsional (E4) buckling with the slender-element reduction of E7.
 Single angles use `a.compression_strength(L, K, e5="planar")` for the Section E5 effective slenderness.
 
+Flexure (AISC 360-22 Chapter F): `w.flexure_strength("x", Lb=Q_(8, "ft"), Cb=1.0)` returns every applicable limit
+state (yielding, LTB, flange/web local buckling); `get_Mnx`/`get_phiMnx`/`get_Mny`/`get_phiMny` give the governing
+strength in kip-ft. `Cb` is user-supplied.
+
 The library is LRFD only. All resistance factors live in `steel_design.resistance_factors.ResistanceFactors`.
 Each shape has `get_Pnt`/`get_phiPnt` (tension) and `get_Pnc`/`get_phiPnc` (compression) for the nominal and
 design strength of the governing limit state, in kips.

@@ -18,6 +18,7 @@ with `pint <https://pint.readthedocs.io>`_.
    classification
    tension
    compression
+   flexure
 
 .. toctree::
    :maxdepth: 2

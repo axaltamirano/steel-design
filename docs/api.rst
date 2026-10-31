@@ -81,3 +81,6 @@ API reference
 
 .. automodule:: steel_design.classification
    :members:
+
+.. automodule:: steel_design.flexure
+   :members:
