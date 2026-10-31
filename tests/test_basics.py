@@ -109,3 +109,14 @@ def test_units_are_enforced():
     # mixed length units are converted
     s = BuiltUpWideFlange(Q_(1, "ft"), Q_(10, "in"), Q_(0.5, "in"), Q_(0.25, "in"))
     assert s.d.m == 12
+
+
+def test_declared_properties_match_database_columns():
+    import typing
+
+    from steel_design.sections import SHAPE_CLASSES
+
+    for fam, cls in SHAPE_CLASSES.items():
+        declared = {k for c in cls.__mro__ for k in typing.get_type_hints(c, include_extras=False) if not k.startswith("_")}
+        declared -= {"name", "family", "material"}
+        assert declared == set(cls.properties()), (fam, declared ^ set(cls.properties()))

@@ -4,6 +4,13 @@ from __future__ import annotations
 
 from functools import cached_property
 
+from steel_design.classification import (
+    SectionClassification,
+    check_axis,
+    compression_element,
+    flexure_element,
+    sqrt_E_Fy,
+)
 from steel_design.materials.base import SteelMaterial
 from steel_design.materials.defaults import default_material_for
 from steel_design.sections.base import Section
@@ -136,6 +143,32 @@ class BuiltUpBox(Section):
     def h_tw(self):
         """Web slenderness, clear height ``h`` over ``tw`` (dimensionless)."""
         return float(self.h / self.tw)
+
+    def classify_compression(self) -> SectionClassification:
+        """Flanges and webs are stiffened elements, Case 8 (1.49 sqrt(E/Fy)) of Table B4.1a."""
+        limit = 1.49 * sqrt_E_Fy(self.material)
+        return SectionClassification(
+            (
+                compression_element("flange", self.b_tf, limit, "Table B4.1a Case 8"),
+                compression_element("web", self.h_tw, limit, "Table B4.1a Case 8"),
+            )
+        )
+
+    def classify_flexure(self, axis: str = "x") -> SectionClassification:
+        """Flange Case 21 (1.12 and 1.49 sqrt(E/Fy)) and web Case 19 (2.42 and 5.70 sqrt(E/Fy)).
+
+        The ratios use the clear distances between the plates providing stiffening (Section
+        B4.1b(e)). For minor-axis bending the roles of flange and web are reversed.
+        """
+        r = sqrt_E_Fy(self.material)
+        major = check_axis(axis) == "x"
+        flange_ratio, web_ratio = (self.b_tf, self.h_tw) if major else (self.h_tw, self.b_tf)
+        return SectionClassification(
+            (
+                flexure_element("flange", flange_ratio, 1.12 * r, 1.49 * r, "Table B4.1b Case 21"),
+                flexure_element("web", web_ratio, 2.42 * r, 5.70 * r, "Table B4.1b Case 19"),
+            )
+        )
 
     def __repr__(self) -> str:
         return f"<BuiltUpBox {self.name} ({self.material.name})>"

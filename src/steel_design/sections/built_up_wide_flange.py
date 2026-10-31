@@ -2,8 +2,19 @@
 
 from __future__ import annotations
 
+import math
 from functools import cached_property
 
+from steel_design.classification import (
+    SectionClassification,
+    Slenderness,
+    check_axis,
+    compression_element,
+    E_Fy,
+    flexure_element,
+    kc,
+    sqrt_E_Fy,
+)
 from steel_design.materials.base import SteelMaterial
 from steel_design.materials.defaults import default_material_for
 from steel_design.sections.base import Section
@@ -287,6 +298,95 @@ class BuiltUpWideFlange(Section):
         if compression_flange == "bottom":
             return Q_(2 * (y - g["tb"]), "in")
         raise ValueError("compression_flange must be 'top' or 'bottom'")
+
+    def classify_compression(self) -> SectionClassification:
+        """Flange Case 2 (0.64 sqrt(kc E/Fy)) of Table B4.1a.
+
+        The web is Case 5 (1.49 sqrt(E/Fy)) when doubly symmetric and Case 8 otherwise. Singly
+        symmetric sections report both flanges as ``"top flange"`` and ``"bottom flange"``.
+        """
+        r = sqrt_E_Fy(self.material)
+        limit = 0.64 * math.sqrt(kc(self.h_tw)) * r
+        if self.is_doubly_symmetric:
+            return SectionClassification(
+                (
+                    compression_element("flange", self.bf_2tf, limit, "Table B4.1a Case 2"),
+                    compression_element("web", self.h_tw, 1.49 * r, "Table B4.1a Case 5"),
+                )
+            )
+        return SectionClassification(
+            (
+                compression_element("top flange", self.bf_2tf, limit, "Table B4.1a Case 2"),
+                compression_element("bottom flange", self.bf_2tf_bottom, limit, "Table B4.1a Case 2"),
+                compression_element("web", self.h_tw, 1.49 * r, "Table B4.1a Case 8"),
+            )
+        )
+
+    def classify_flexure(self, axis: str = "x", compression_flange: str = "top") -> SectionClassification:
+        """Flange Case 11 and web Case 15 (doubly symmetric) or Case 16 (singly symmetric) of Table B4.1b.
+
+        Args:
+            axis: ``"x"`` or ``"y"``. Minor-axis bending checks the flange(s) only, Case 13.
+            compression_flange: ``"top"`` or ``"bottom"``, the flange in flexural compression for
+                major-axis bending. It matters only for singly symmetric sections.
+
+        Raises:
+            ValueError: For an invalid ``axis`` or ``compression_flange``.
+        """
+        axis = check_axis(axis)
+        if compression_flange not in ("top", "bottom"):
+            raise ValueError("compression_flange must be 'top' or 'bottom'")
+        e_fy, r = E_Fy(self.material), sqrt_E_Fy(self.material)
+
+        if axis == "y":
+            case13 = "Table B4.1b Case 13"
+            if self.is_doubly_symmetric:
+                return SectionClassification((flexure_element("flange", self.bf_2tf, 0.38 * r, 1.0 * r, case13),))
+            return SectionClassification(
+                (
+                    flexure_element("top flange", self.bf_2tf, 0.38 * r, 1.0 * r, case13),
+                    flexure_element("bottom flange", self.bf_2tf_bottom, 0.38 * r, 1.0 * r, case13),
+                )
+            )
+
+        kc_ = kc(self.h_tw)
+        lam_r_web = 5.70 * r
+        if self.is_doubly_symmetric:
+            web = flexure_element("web", self.h_tw, 3.76 * r, lam_r_web, "Table B4.1b Case 15")
+            fl = 0.7
+            flange_ratio = self.bf_2tf
+        else:
+            hc = self.hc(compression_flange).to("in").m
+            hp = self.hp(compression_flange).to("in").m
+            mp_my = float(self.Zx / self.Sx)
+            lam_p = (hc / hp) * r / (0.54 * mp_my - 0.09) ** 2 if hp > 0 else lam_r_web
+            web = flexure_element(
+                "web", hc / self.tw.to("in").m, min(lam_p, lam_r_web), lam_r_web, "Table B4.1b Case 16"
+            )
+            fl = self._fl_ratio(compression_flange, web.classification is Slenderness.SLENDER)
+            flange_ratio = self.bf_2tf if compression_flange == "top" else self.bf_2tf_bottom
+        lam_r = 0.95 * math.sqrt(kc_ * e_fy / fl)
+        flange = flexure_element("flange", flange_ratio, 0.38 * r, lam_r, "Table B4.1b Case 11")
+        return SectionClassification((flange, web))
+
+    def _fl_ratio(self, compression_flange: str, web_slender: bool) -> float:
+        """FL / Fy per Table B4.1b footnote [b] and Eqs. F4-6a/b."""
+        if web_slender:
+            return 0.7
+        sxc, sxt = (
+            (self.Sx_top, self.Sx_bottom) if compression_flange == "top" else (self.Sx_bottom, self.Sx_top)
+        )
+        ratio = float(sxt / sxc)
+        return 0.7 if ratio >= 0.7 else max(ratio, 0.5)
+
+    @property
+    def flexure_slenderness_x_bottom(self) -> SectionClassification:
+        """Strong-axis flexure classification with the bottom flange in compression.
+
+        :attr:`flexure_slenderness_x` assumes the top flange is in compression; the two differ
+        only for singly symmetric sections.
+        """
+        return self.classify_flexure("x", compression_flange="bottom")
 
     def __repr__(self) -> str:
         return f"<BuiltUpWideFlange {self.name} ({self.material.name})>"

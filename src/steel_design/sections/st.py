@@ -1,9 +1,78 @@
 """Tees cut from S-shapes (ST)."""
 
-from steel_design.sections.database import DatabaseShape
+from __future__ import annotations
+
+from pint import Quantity
+
+from steel_design.sections.shape_groups import TeeShape
 
 
-class ST(DatabaseShape):
-    """Tees cut from S-shapes."""
+class ST(TeeShape):
+    """Tee cut from an S-shape (ST), e.g. ``ST6X20.4``."""
 
     family = "ST"
+
+    #: Shape designation per the AISC EDI naming convention.
+    EDI_Std_Nomenclature: str
+    #: Shape designation as shown in the Steel Construction Manual.
+    AISC_Manual_Label: str
+    #: Nominal weight per unit length, lb/ft.
+    weight: Quantity
+    #: Cross-sectional area, in.².
+    A: Quantity
+    #: Overall depth of the tee, in.
+    d: Quantity
+    #: Detailing value of member depth, in.
+    ddet: Quantity
+    #: Width of flange, in.
+    bf: Quantity
+    #: Detailing value of flange width, in.
+    bfdet: Quantity
+    #: Thickness of web, in.
+    tw: Quantity
+    #: Detailing value of web thickness, in.
+    twdet: Quantity
+    #: Detailing value of tw/2, in.
+    twdet_2: Quantity
+    #: Thickness of flange, in.
+    tf: Quantity
+    #: Detailing value of flange thickness, in.
+    tfdet: Quantity
+    #: Distance from outer face of flange to web toe of fillet, used for design, in.
+    kdes: Quantity
+    #: Distance from outer face of flange to web toe of fillet, used for detailing, in.
+    kdet: Quantity
+    #: Vertical distance from the designated edge (Manual Part 1) to the center of gravity, in.
+    y: Quantity
+    #: Vertical distance from the designated edge (Manual Part 1) to the plastic neutral axis, in.
+    yp: Quantity
+    #: Flange slenderness ratio, bf/2tf.
+    bf_2tf: float
+    #: Stem slenderness ratio, d/tw.
+    D_t: float
+    #: Moment of inertia about the x-axis, in.⁴.
+    Ix: Quantity
+    #: Plastic section modulus about the x-axis, in.³.
+    Zx: Quantity
+    #: Elastic section modulus about the x-axis, in.³.
+    Sx: Quantity
+    #: Radius of gyration about the x-axis, in.
+    rx: Quantity
+    #: Moment of inertia about the y-axis, in.⁴.
+    Iy: Quantity
+    #: Plastic section modulus about the y-axis, in.³.
+    Zy: Quantity
+    #: Elastic section modulus about the y-axis, in.³.
+    Sy: Quantity
+    #: Radius of gyration about the y-axis, in.
+    ry: Quantity
+    #: Torsional constant, in.⁴.
+    J: Quantity
+    #: Warping constant, in.⁶.
+    Cw: Quantity
+    #: Polar radius of gyration about the shear center, in.
+    ro: Quantity
+    #: Flexural constant.
+    H: float
+    #: Workable gage for the inner fastener holes in the flange, in.
+    WGi: Quantity | None
