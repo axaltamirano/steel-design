@@ -15,6 +15,7 @@ from steel_design.classification import (
     flexure_element,
     SectionClassification,
 )
+from steel_design.flexure import FlexureStrength, round_hss_strength
 from steel_design.sections.database import DatabaseShape
 
 
@@ -81,3 +82,16 @@ class Pipe(DatabaseShape):
         return SectionClassification(
             (flexure_element("wall", self.D_t, 0.07 * e, 0.31 * e, "Table B4.1b Case 20"),)
         )
+
+    def flexure_strength(self, axis: str = "x", Lb=None, Cb: float = 1.0) -> FlexureStrength:
+        """Flexural strength per AISC 360-22 Section F8: yielding and wall local buckling. There is
+        no lateral-torsional buckling, so ``Lb`` and ``Cb`` are accepted but unused.
+
+        Args:
+            axis: ``"x"`` or ``"y"``; the strength is the same about either axis.
+
+        Raises:
+            ValueError: For an invalid ``axis``, or if ``D/t`` is not below ``0.45 E/Fy``.
+        """
+        axis = check_axis(axis)
+        return round_hss_strength(self.material, Z=self.Zx, S=self.Sx, wall=self.classify_flexure(axis)["wall"])

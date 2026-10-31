@@ -24,6 +24,12 @@ from steel_design.classification import (
     kc,
     sqrt_E_Fy,
 )
+from steel_design.flexure import (
+    FlexureStrength,
+    i_shape_major_axis_f2_f3,
+    i_shape_major_axis_f4_f5,
+    i_shape_minor_axis,
+)
 from steel_design.materials.base import SteelMaterial
 from steel_design.materials.defaults import default_material_for
 from steel_design.sections.base import Section
@@ -447,6 +453,57 @@ class BuiltUpWideFlange(Section):
         only for singly symmetric sections.
         """
         return self.classify_flexure("x", compression_flange="bottom")
+
+    def flexure_strength(
+        self, axis: str = "x", Lb=None, Cb: float = 1.0, compression_flange: str = "top"
+    ) -> FlexureStrength:
+        """Flexural strength per AISC 360-22 Chapter F.
+
+        Strong-axis bending of doubly symmetric sections with compact webs uses Sections F2 and F3.
+        Other sections (noncompact or slender webs, or singly symmetric) use Sections F4 and F5,
+        with the web and flange classifications of :meth:`classify_flexure`. Weak-axis bending
+        uses Section F6, checking both flanges of a singly symmetric section.
+
+        Args:
+            axis: ``"x"`` or ``"y"``.
+            Lb: Unbraced length (pint length), required for strong-axis bending.
+            Cb: Lateral-torsional buckling modification factor; defaults to 1.0.
+            compression_flange: ``"top"`` or ``"bottom"``, the flange in flexural compression
+                for strong-axis bending. It matters only for singly symmetric sections, and
+                members in reverse curvature need both cases checked (Section F1(d)).
+
+        Raises:
+            ValueError: For an invalid ``axis`` or ``compression_flange``, or a missing ``Lb``.
+        """
+        axis = check_axis(axis)
+        c = self.classify_flexure(axis, compression_flange)
+        if axis == "y":
+            flanges = (
+                {"flange": c["flange"]}
+                if self.is_doubly_symmetric
+                else {"top flange": c["top flange"], "bottom flange": c["bottom flange"]}
+            )
+            return i_shape_minor_axis(self.material, Zy=self.Zy, Sy=self.Sy, flanges=flanges)
+        if Lb is None:
+            raise ValueError("Lb is required for strong-axis flexure")
+        web = c["web"]
+        if self.is_doubly_symmetric and web.classification is Slenderness.COMPACT:
+            return i_shape_major_axis_f2_f3(
+                self.material, Lb, Cb, Zx=self.Zx, Sx=self.Sx, ry=self.ry, rts=self.rts, J=self.J,
+                ho=self.ho, flange=c["flange"], h_tw=self.h_tw,
+            )
+        if self.is_doubly_symmetric:
+            Sxc, Sxt, bfc, tfc, Iyc = self.Sx, self.Sx, self.bf, self.tf, self.Iy / 2
+        elif compression_flange == "top":
+            Sxc, Sxt, bfc, tfc = self.Sx_top, self.Sx_bottom, self.bf, self.tf
+            Iyc = self.tf * self.bf**3 / 12
+        else:
+            Sxc, Sxt, bfc, tfc = self.Sx_bottom, self.Sx_top, self.bf_bottom, self.tf_bottom
+            Iyc = self.tf_bottom * self.bf_bottom**3 / 12
+        return i_shape_major_axis_f4_f5(
+            self.material, Lb, Cb, Zx=self.Zx, Sxc=Sxc, Sxt=Sxt, Iy=self.Iy, Iyc=Iyc, J=self.J,
+            ho=self.ho, tw=self.tw, bfc=bfc, tfc=tfc, h_tw=self.h_tw, flange=c["flange"], web=web,
+        )
 
     def __repr__(self) -> str:
         return f"<BuiltUpWideFlange {self.name} ({self.material.name})>"

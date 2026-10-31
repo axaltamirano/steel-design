@@ -23,6 +23,7 @@ from steel_design.classification import (
     sqrt_E_Fy,
 )
 from steel_design.materials.base import SteelMaterial
+from steel_design.flexure import FlexureStrength, double_angle_strength
 from steel_design.sections.angle import Angle
 from steel_design.sections.database import DatabaseShape
 
@@ -129,4 +130,33 @@ class DoubleAngle(DatabaseShape):
         r = sqrt_E_Fy(self.material)
         return SectionClassification(
             (flexure_element("leg", self.b_t, 0.54 * r, 0.91 * r, "Table B4.1b Case 12"),)
+        )
+
+    def flexure_strength(self, axis: str = "x", Lb=None, Cb: float = 1.0, web_legs: str = "tension") -> FlexureStrength:
+        """Flexural strength per AISC 360-22 Sections F9 and F10.3, for loading in the plane of symmetry.
+
+        Args:
+            axis: ``"x"``. Bending about the y-axis is outside Section F9.
+            Lb: Unbraced length (pint length), required.
+            Cb: Accepted for a uniform interface; Section F9 has no ``Cb``.
+            web_legs: ``"tension"`` if the back-to-back (web) legs are in flexural tension, or
+                ``"compression"`` if they are in flexural compression.
+
+        Raises:
+            NotImplementedError: For ``axis="y"``.
+            ValueError: For an invalid ``axis`` or ``web_legs``, or a missing ``Lb``.
+        """
+        if check_axis(axis) == "y":
+            raise NotImplementedError("Section F9 covers double angles loaded in the plane of symmetry only (axis 'x')")
+        if web_legs not in ("tension", "compression"):
+            raise ValueError("web_legs must be 'tension' or 'compression'")
+        if Lb is None:
+            raise ValueError("Lb is required for flexure of double angles")
+        c = self.classify_flexure("x")["leg"]
+        flange_leg = flexure_element("flange leg", float(self.b / self.t), c.limit_p, c.limit_r, c.reference)
+        web_leg = flexure_element("web leg", float(self.d / self.t), c.limit_p, c.limit_r, c.reference)
+        return double_angle_strength(
+            self.material, Lb, Zx=self.Zx, Sx=self.Sx, Sxc=self.Ix / self.y, Iy=self.Iy, J=self.J,
+            d=self.d, ry=self.ry, web_legs_in_tension=web_legs == "tension",
+            flange_leg=flange_leg, web_leg=web_leg,
         )

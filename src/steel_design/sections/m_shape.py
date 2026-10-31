@@ -12,11 +12,18 @@ from steel_design.compression import (
     torsional_buckling_mode,
 )
 from steel_design.classification import (
+    Slenderness,
     check_axis,
     compression_element,
     flexure_element,
     SectionClassification,
     sqrt_E_Fy,
+)
+from steel_design.flexure import (
+    FlexureStrength,
+    i_shape_major_axis_f2_f3,
+    i_shape_major_axis_f4_f5,
+    i_shape_minor_axis,
 )
 from steel_design.sections.database import DatabaseShape
 
@@ -150,4 +157,36 @@ class MShape(DatabaseShape):
                 flexure_element("flange", self.bf_2tf, 0.38 * r, 1.0 * r, "Table B4.1b Case 10"),
                 flexure_element("web", self.h_tw, 3.76 * r, 5.70 * r, "Table B4.1b Case 15"),
             )
+        )
+
+    def flexure_strength(self, axis: str = "x", Lb=None, Cb: float = 1.0) -> FlexureStrength:
+        """Flexural strength per AISC 360-22 Chapter F.
+
+        Strong-axis bending uses Section F2 and F3 (compact web) or F4 and F5 (noncompact or
+        slender web), with the web and flange classifications of :meth:`classify_flexure`.
+        Weak-axis bending uses Section F6.
+
+        Args:
+            axis: ``"x"`` or ``"y"``.
+            Lb: Unbraced length (pint length), required for strong-axis bending.
+            Cb: Lateral-torsional buckling modification factor; defaults to 1.0.
+
+        Raises:
+            ValueError: For an invalid ``axis`` or a missing ``Lb``.
+        """
+        axis = check_axis(axis)
+        c = self.classify_flexure(axis)
+        if axis == "y":
+            return i_shape_minor_axis(self.material, Zy=self.Zy, Sy=self.Sy, flanges={"flange": c["flange"]})
+        if Lb is None:
+            raise ValueError("Lb is required for strong-axis flexure")
+        if c["web"].classification is Slenderness.COMPACT:
+            return i_shape_major_axis_f2_f3(
+                self.material, Lb, Cb, Zx=self.Zx, Sx=self.Sx, ry=self.ry, rts=self.rts, J=self.J,
+                ho=self.ho, flange=c["flange"], h_tw=self.h_tw,
+            )
+        return i_shape_major_axis_f4_f5(
+            self.material, Lb, Cb, Zx=self.Zx, Sxc=self.Sx, Sxt=self.Sx, Iy=self.Iy, Iyc=self.Iy / 2,
+            J=self.J, ho=self.ho, tw=self.tw, bfc=self.bf, tfc=self.tf, h_tw=self.h_tw,
+            flange=c["flange"], web=c["web"],
         )

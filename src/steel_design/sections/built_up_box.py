@@ -16,6 +16,7 @@ from steel_design.classification import (
     flexure_element,
     sqrt_E_Fy,
 )
+from steel_design.flexure import FlexureStrength, rectangular_hss_strength
 from steel_design.materials.base import SteelMaterial
 from steel_design.materials.defaults import default_material_for
 from steel_design.sections.base import Section
@@ -189,6 +190,35 @@ class BuiltUpBox(Section):
                 flexure_element("flange", flange_ratio, 1.12 * r, 1.49 * r, "Table B4.1b Case 21"),
                 flexure_element("web", web_ratio, 2.42 * r, 5.70 * r, "Table B4.1b Case 19"),
             )
+        )
+
+    def flexure_strength(self, axis: str = "x", Lb=None, Cb: float = 1.0) -> FlexureStrength:
+        """Flexural strength per AISC 360-22 Section F7 (box sections use the coefficient 0.34 for
+        the effective width of slender flanges).
+
+        Lateral-torsional buckling applies only to strong-axis bending of a section that is not
+        square, and then ``Lb`` is required; it is ignored otherwise. For minor-axis bending the
+        flanges are the walls of thickness ``tw`` and the webs those of thickness ``tf``.
+
+        Args:
+            axis: ``"x"`` or ``"y"``.
+            Lb: Unbraced length (pint length).
+            Cb: Lateral-torsional buckling modification factor; defaults to 1.0.
+
+        Raises:
+            ValueError: For an invalid ``axis`` or a missing ``Lb`` where required.
+        """
+        axis = check_axis(axis)
+        c = self.classify_flexure(axis)
+        major = axis == "x"
+        return rectangular_hss_strength(
+            self.material, axis, Lb, Cb,
+            Z=self.Zx if major else self.Zy, S=self.Sx if major else self.Sy,
+            I=self.Ix if major else self.Iy, A=self.A, ry=self.ry, J=self.J,
+            depth=self.Ht if major else self.B,
+            t_flange=self.tf if major else self.tw, t_web=self.tw if major else self.tf,
+            flange=c["flange"], web=c["web"], box=True,
+            ltb=major and self.Ht != self.B,
         )
 
     def __repr__(self) -> str:

@@ -19,6 +19,7 @@ from steel_design.classification import (
     SectionClassification,
     sqrt_E_Fy,
 )
+from steel_design.flexure import FlexureStrength, tee_strength
 from steel_design.sections.database import DatabaseShape
 
 
@@ -131,3 +132,29 @@ class ST(DatabaseShape):
             return SectionClassification((flange,))
         stem = flexure_element("stem", self.D_t, 0.84 * r, 1.52 * r, "Table B4.1b Case 14")
         return SectionClassification((flange, stem))
+
+    def flexure_strength(self, axis: str = "x", Lb=None, Cb: float = 1.0, stem: str = "tension") -> FlexureStrength:
+        """Flexural strength per AISC 360-22 Section F9, for loading in the plane of symmetry.
+
+        Args:
+            axis: ``"x"``. Bending about the y-axis is outside Section F9.
+            Lb: Unbraced length (pint length), required.
+            Cb: Accepted for a uniform interface; Section F9 has no ``Cb``.
+            stem: ``"tension"`` if the stem is in flexural tension (flange in compression), or
+                ``"compression"`` if the stem is in flexural compression.
+
+        Raises:
+            NotImplementedError: For ``axis="y"``.
+            ValueError: For an invalid ``axis`` or ``stem``, or a missing ``Lb``.
+        """
+        if check_axis(axis) == "y":
+            raise NotImplementedError("Section F9 covers tees loaded in the plane of symmetry only (axis 'x')")
+        if stem not in ("tension", "compression"):
+            raise ValueError("stem must be 'tension' or 'compression'")
+        if Lb is None:
+            raise ValueError("Lb is required for flexure of tees")
+        c = self.classify_flexure("x")
+        return tee_strength(
+            self.material, Lb, Zx=self.Zx, Sx=self.Sx, Sxc=self.Ix / self.y, Iy=self.Iy, J=self.J,
+            d=self.d, ry=self.ry, stem_in_tension=stem == "tension", flange=c["flange"], stem=c["stem"],
+        )

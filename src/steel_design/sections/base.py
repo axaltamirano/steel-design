@@ -12,6 +12,7 @@ from steel_design.compression import (
     effective_lengths,
     reduce_slender_elements,
 )
+from steel_design.flexure import FlexureStrength
 from steel_design.materials.base import SteelMaterial
 from steel_design.tension import TensionStrength, slenderness_ratio, tension_strength
 
@@ -143,3 +144,37 @@ class Section:
     def _compression(self, modes) -> CompressionStrength:
         slender = self.compression_slenderness.governing == Slenderness.SLENDER
         return compression_strength(self.A, self.material, modes, self.effective_area if slender else None, slender)
+
+    def flexure_strength(self, axis: str = "x", Lb=None, Cb: float = 1.0, **options) -> FlexureStrength:
+        """Flexural strength per AISC 360-22 Chapter F, about ``axis``.
+
+        Args:
+            axis: ``"x"`` for strong-axis or ``"y"`` for weak-axis bending.
+            Lb: Unbraced length (pint length). Required wherever lateral-torsional buckling can
+                apply, and ignored elsewhere.
+            Cb: Lateral-torsional buckling modification factor (Eq. F1-1, see
+                :func:`steel_design.flexure.cb`); defaults to 1.0.
+            **options: Section-specific options, documented by each section class.
+
+        Raises:
+            NotImplementedError: If the section type does not implement it.
+        """
+        raise NotImplementedError(f"Flexure not implemented for {type(self).__name__}")
+
+    def get_Mnx(self, Lb=None, Cb: float = 1.0, **options):
+        """Nominal flexural strength ``Mn`` about the x-axis for the limit state with the lowest
+        design strength (Chapter F), in kip-ft. See :meth:`flexure_strength`."""
+        return self.flexure_strength("x", Lb, Cb, **options).governing.Mn.to("kip*ft")
+
+    def get_phiMnx(self, Lb=None, Cb: float = 1.0, **options):
+        """Governing design flexural strength ``phi_b Mn`` about the x-axis, in kip-ft."""
+        return self.flexure_strength("x", Lb, Cb, **options).design_strength.to("kip*ft")
+
+    def get_Mny(self, Lb=None, Cb: float = 1.0, **options):
+        """Nominal flexural strength ``Mn`` about the y-axis for the limit state with the lowest
+        design strength (Chapter F), in kip-ft. See :meth:`flexure_strength`."""
+        return self.flexure_strength("y", Lb, Cb, **options).governing.Mn.to("kip*ft")
+
+    def get_phiMny(self, Lb=None, Cb: float = 1.0, **options):
+        """Governing design flexural strength ``phi_b Mn`` about the y-axis, in kip-ft."""
+        return self.flexure_strength("y", Lb, Cb, **options).design_strength.to("kip*ft")

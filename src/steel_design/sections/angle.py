@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from functools import cached_property
 
 from pint import Quantity
 
@@ -21,7 +22,16 @@ from steel_design.classification import (
     SectionClassification,
     sqrt_E_Fy,
 )
+from steel_design.flexure import (
+    ANGLE_CB_LIMIT,
+    FlexureStrength,
+    check_Cb,
+    geometric_axis_mcr,
+    principal_axis_mcr,
+    single_angle_strength,
+)
 from steel_design.sections.database import DatabaseShape
+from steel_design.units import Q_
 
 
 class Angle(DatabaseShape):
@@ -191,3 +201,124 @@ class Angle(DatabaseShape):
         return SectionClassification(
             (flexure_element("leg", self.b_t, 0.54 * r, 0.91 * r, "Table B4.1b Case 12"),)
         )
+
+    @cached_property
+    def beta_w(self) -> Quantity:
+        """Section property ``beta_w`` for the major principal axis (Commentary to Section F10),
+        ``(1/Iw) * integral of z (w^2 + z^2) dA - 2 zo``, as a magnitude in inches.
+
+        The Shapes Database does not list ``beta_w``; it is integrated here over the two legs as
+        rectangles of thickness ``t`` (fillets and toe radii ignored) from the database ``x``,
+        ``y``, ``tan(alpha)`` and ``Iw``, with the shear center at the heel. The result is an
+        approximation that should agree with the Steel Construction Manual value to within a
+        few percent. It is zero for equal-leg angles. Section F10 takes it as positive with the
+        short legs in compression and negative with the long legs in compression, which
+        :meth:`flexure_strength` applies. Pass ``beta_w`` to override it.
+        """
+        b, d, t = (self.b.to("in").m, self.d.to("in").m, self.t.to("in").m)
+        if math.isclose(b, d):
+            return Q_(0.0, "in")
+        xc, yc = self.x.to("in").m, self.y.to("in").m
+        alpha = math.atan(self.tan_alpha)
+
+        def principal(x: float, y: float) -> tuple[float, float]:
+            dx, dy = x - xc, y - yc
+            return dx * math.cos(alpha) + dy * math.sin(alpha), -dx * math.sin(alpha) + dy * math.cos(alpha)
+
+        # The long leg runs along y and the short leg along x, from the heel at the origin;
+        # two-point Gauss quadrature is exact for the cubic integrand.
+        gauss = (-1 / math.sqrt(3), 1 / math.sqrt(3))
+        total = 0.0
+        for x0, x1, y0, y1 in ((0.0, t, 0.0, b), (t, d, 0.0, t)):
+            hx, hy = (x1 - x0) / 2, (y1 - y0) / 2
+            for gx in gauss:
+                for gy in gauss:
+                    w, z = principal((x0 + x1) / 2 + hx * gx, (y0 + y1) / 2 + hy * gy)
+                    total += z * (w * w + z * z) * hx * hy
+        _, z_shear_center = principal(t / 2, t / 2)
+        return Q_(abs(total / self.Iw.to("in**4").m - 2 * z_shear_center), "in")
+
+    def get_Mnw(self, Lb=None, Cb: float = 1.0, **options):
+        """Nominal flexural strength about the major principal axis, in kip-ft. See :meth:`flexure_strength`."""
+        return self.flexure_strength("w", Lb, Cb, **options).governing.Mn.to("kip*ft")
+
+    def get_phiMnw(self, Lb=None, Cb: float = 1.0, **options):
+        """Design flexural strength about the major principal axis, in kip-ft. See :meth:`flexure_strength`."""
+        return self.flexure_strength("w", Lb, Cb, **options).design_strength.to("kip*ft")
+
+    def get_Mnz(self, Lb=None, Cb: float = 1.0, **options):
+        """Nominal flexural strength about the minor principal axis, in kip-ft. See :meth:`flexure_strength`."""
+        return self.flexure_strength("z", Lb, Cb, **options).governing.Mn.to("kip*ft")
+
+    def get_phiMnz(self, Lb=None, Cb: float = 1.0, **options):
+        """Design flexural strength about the minor principal axis, in kip-ft. See :meth:`flexure_strength`."""
+        return self.flexure_strength("z", Lb, Cb, **options).design_strength.to("kip*ft")
+
+    def flexure_strength(
+        self,
+        axis: str = "w",
+        Lb=None,
+        Cb: float = 1.0,
+        compression_leg: str = "long",
+        toe_in_compression: bool = True,
+        lateral_restraint: bool = False,
+        beta_w=None,
+    ) -> FlexureStrength:
+        """Flexural strength of a single angle per AISC 360-22 Section F10.
+
+        Limit states are yielding (``1.5 My``), lateral-torsional buckling (about the major
+        principal axis and, for equal-leg angles, the geometric axes) and leg local buckling
+        for legs whose toe is in compression. Moment about both axes, or with axial force, is a
+        Chapter H matter.
+
+        Args:
+            axis: ``"w"`` (major principal axis, default), ``"z"`` (minor principal axis), or
+                ``"x"`` / ``"y"`` (geometric axes, equal-leg angles only).
+            Lb: Unbraced length (pint length). Required for the ``"w"``, ``"x"`` and ``"y"`` axes.
+            Cb: Lateral-torsional buckling modification factor, limited to 1.5 (Section F10.2).
+            compression_leg: For ``"w"``: ``"long"`` (default, the conservative case, negative
+                ``beta_w``) or ``"short"``, the leg whose toe is in flexural compression.
+            toe_in_compression: For ``"z"``, ``"x"`` and ``"y"``: whether the toes are in
+                flexural compression, which makes leg local buckling apply (default True). For
+                the geometric axes it also selects Eq. F10-5a or F10-5b.
+            lateral_restraint: For ``"x"`` and ``"y"``: lateral-torsional restraint at the point of
+                maximum moment only (``Mcr`` increased by 1.25, full ``My``).
+            beta_w: Override of :attr:`beta_w`, a pint length (signed as in Eq. F10-4).
+
+        Raises:
+            ValueError: For an invalid option, a missing ``Lb``, or geometric axes of an angle
+                with unequal legs.
+        """
+        axis = axis.lower()
+        if axis not in ("w", "z", "x", "y"):
+            raise ValueError("axis must be 'w', 'z', 'x' or 'y'")
+        if compression_leg not in ("long", "short"):
+            raise ValueError("compression_leg must be 'long' or 'short'")
+        Cb = min(check_Cb(Cb), ANGLE_CB_LIMIT)
+        Fy = self.material.Fy
+        leg = self.classify_flexure()["leg"]
+        long_leg = flexure_element("long leg", float(self.b / self.t), leg.limit_p, leg.limit_r, leg.reference)
+        short_leg = flexure_element("short leg", float(self.d / self.t), leg.limit_p, leg.limit_r, leg.reference)
+
+        if axis == "z":
+            My = Fy * min(s for s in (self.SzA, self.SzB, self.SzC) if s is not None)
+            legs = {"short leg toe": (self.SzA, short_leg), "long leg toe": (self.SzC, long_leg)} if toe_in_compression else {}
+            return single_angle_strength(self.material, "z", My=My, Cb=Cb, legs=legs)
+
+        if Lb is None:
+            raise ValueError(f"Lb is required for flexure about the {axis}-axis")
+        if axis == "w":
+            My = Fy * min(s for s in (self.SwA, self.SwB, self.SwC) if s is not None)
+            bw = beta_w if beta_w is not None else (-self.beta_w if compression_leg == "long" else self.beta_w)
+            Mcr = principal_axis_mcr(self.material.E, self.A, self.rz, self.t, Lb, Cb, bw)
+            legs = {"long leg toe": (self.SwC, long_leg)} if compression_leg == "long" else {"short leg toe": (self.SwA, short_leg)}
+            return single_angle_strength(self.material, "w", My=My, Cb=Cb, Mcr=Mcr, legs=legs)
+
+        if not math.isclose(self.b.m, self.d.m):
+            raise ValueError("Geometric-axis flexure applies to equal-leg angles only; use axis 'w' or 'z'")
+        My = Fy * self.Sx
+        Mcr = geometric_axis_mcr(self.material.E, self.b, self.t, Lb, Cb, toe_in_compression, lateral_restraint)
+        ltb_My = My if lateral_restraint else 0.8 * My
+        Sc = self.Sx if lateral_restraint else 0.8 * self.Sx
+        legs = {"leg": (Sc, long_leg)} if toe_in_compression else {}
+        return single_angle_strength(self.material, axis, My=My, Cb=Cb, ltb_My=ltb_My, Mcr=Mcr, legs=legs)

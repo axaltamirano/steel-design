@@ -18,3 +18,5 @@ class ResistanceFactors:
     TENSION_RUPTURE: Final = 0.75
     #: Compression, all buckling limit states (Section E1).
     COMPRESSION: Final = 0.90
+    #: Flexure, all limit states (Section F1).
+    FLEXURE: Final = 0.90

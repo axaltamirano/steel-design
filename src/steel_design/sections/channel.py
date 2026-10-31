@@ -13,12 +13,14 @@ from steel_design.compression import (
     slender_element,
 )
 from steel_design.classification import (
+    Slenderness,
     check_axis,
     compression_element,
     flexure_element,
     SectionClassification,
     sqrt_E_Fy,
 )
+from steel_design.flexure import FlexureStrength, i_shape_major_axis_f2_f3, i_shape_minor_axis
 from steel_design.sections.database import DatabaseShape
 
 
@@ -162,4 +164,37 @@ class Channel(DatabaseShape):
                 flexure_element("flange", self.b_t, 0.38 * r, 1.0 * r, "Table B4.1b Case 10"),
                 flexure_element("web", self.h_tw, 3.76 * r, 5.70 * r, "Table B4.1b Case 15"),
             )
+        )
+
+    def flexure_strength(self, axis: str = "x", Lb=None, Cb: float = 1.0) -> FlexureStrength:
+        """Flexural strength per AISC 360-22 Chapter F.
+
+        Strong-axis bending uses Section F2, which covers channels with compact webs and flanges.
+        Weak-axis bending uses Section F6.
+
+        Args:
+            axis: ``"x"`` or ``"y"``.
+            Lb: Unbraced length (pint length), required for strong-axis bending.
+            Cb: Lateral-torsional buckling modification factor; defaults to 1.0.
+
+        Raises:
+            ValueError: For an invalid ``axis`` or a missing ``Lb``.
+            NotImplementedError: For strong-axis bending of a channel whose web or flange is not
+                compact, which Chapter F covers only through the analysis of Section F12.
+        """
+        axis = check_axis(axis)
+        c = self.classify_flexure(axis)
+        if axis == "y":
+            return i_shape_minor_axis(self.material, Zy=self.Zy, Sy=self.Sy, flanges={"flange": c["flange"]})
+        if Lb is None:
+            raise ValueError("Lb is required for strong-axis flexure")
+        if c.governing is not Slenderness.COMPACT:
+            raise NotImplementedError(
+                f"{self.name} has a noncompact or slender element in strong-axis flexure; Chapter F "
+                "provides strength only for compact channels (F2); see Section F12"
+            )
+        return i_shape_major_axis_f2_f3(
+            self.material, Lb, Cb, Zx=self.Zx, Sx=self.Sx, ry=self.ry, rts=self.rts, J=self.J,
+            ho=self.ho, flange=c["flange"], h_tw=self.h_tw,
+            c=float(((self.ho / 2) * (self.Iy / self.Cw) ** 0.5).to("dimensionless").magnitude),
         )
