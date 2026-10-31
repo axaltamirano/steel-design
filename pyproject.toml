@@ -1,7 +1,9 @@
 [project]
 name = "steel-design"
 version = "0.1.0"
-description = "Add your description here"
+description = "AISC 360-22 steel member design checks in US customary units, managed with pint"
+license = "MIT"
+license-files = ["LICENSE"]
 readme = "README.md"
 authors = [
     { name = "Andrew Altamirano", email = "hi@andrewaltamirano.com" }
