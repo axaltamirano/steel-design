@@ -14,6 +14,7 @@ from steel_design.compression import (
 )
 from steel_design.flexure import FlexureStrength
 from steel_design.materials.base import SteelMaterial
+from steel_design.shear import ShearStrength
 from steel_design.tension import TensionStrength, slenderness_ratio, tension_strength
 
 
@@ -178,3 +179,34 @@ class Section:
     def get_phiMny(self, Lb=None, Cb: float = 1.0, **options):
         """Governing design flexural strength ``phi_b Mn`` about the y-axis, in kip-ft."""
         return self.flexure_strength("y", Lb, Cb, **options).design_strength.to("kip*ft")
+
+    def shear_strength(self, axis: str = "x", **options) -> ShearStrength:
+        """Shear strength per AISC 360-22 Chapter G.
+
+        Args:
+            axis: Axis of bending the shear accompanies: ``"x"`` is shear parallel to the web
+                (strong axis) and ``"y"`` is shear parallel to the flanges (minor axis).
+            **options: Section-specific options; see each section class.
+
+        Raises:
+            NotImplementedError: If the section type does not implement it.
+        """
+        raise NotImplementedError(f"Shear not implemented for {type(self).__name__}")
+
+    def get_Vnx(self, **options):
+        """Nominal shear strength ``Vn`` accompanying x-axis bending (Chapter G), in kips.
+        See :meth:`shear_strength`."""
+        return self.shear_strength("x", **options).Vn.to("kip")
+
+    def get_phiVnx(self, **options):
+        """Design shear strength ``phi_v Vn`` accompanying x-axis bending, in kips."""
+        return self.shear_strength("x", **options).design_strength.to("kip")
+
+    def get_Vny(self, **options):
+        """Nominal shear strength ``Vn`` accompanying y-axis bending (Chapter G), in kips.
+        See :meth:`shear_strength`."""
+        return self.shear_strength("y", **options).Vn.to("kip")
+
+    def get_phiVny(self, **options):
+        """Design shear strength ``phi_v Vn`` accompanying y-axis bending, in kips."""
+        return self.shear_strength("y", **options).design_strength.to("kip")

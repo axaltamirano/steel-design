@@ -21,6 +21,7 @@ from steel_design.classification import (
 )
 from steel_design.flexure import FlexureStrength, tee_strength
 from steel_design.sections.database import DatabaseShape
+from steel_design.shear import KV_LEG, ShearStrength, plate_shear
 
 
 class MT(DatabaseShape):
@@ -159,4 +160,23 @@ class MT(DatabaseShape):
         return tee_strength(
             self.material, Lb, Zx=self.Zx, Sx=self.Sx, Sxc=self.Ix / self.y, Iy=self.Iy, J=self.J,
             d=self.d, ry=self.ry, stem_in_tension=stem == "tension", flange=c["flange"], stem=c["stem"],
+        )
+
+    def shear_strength(self, axis: str = "x") -> ShearStrength:
+        """Shear strength per AISC 360-22 Chapter G.
+
+        Strong-axis shear uses the stem (Section G3, ``b = d``, ``kv = 1.2``). Minor-axis shear
+        uses the flange (Section G6, ``h/tw = bf/(2 tf)``).
+
+        Args:
+            axis: ``"x"`` for shear parallel to the stem, ``"y"`` for shear parallel to the flange.
+
+        Raises:
+            ValueError: For an invalid ``axis``.
+        """
+        if check_axis(axis) == "x":
+            return plate_shear(self.material, "x", length=self.d, thickness=self.tw, kv=KV_LEG, reference="Eq. G3-1")
+        return plate_shear(
+            self.material, "y", length=self.bf, thickness=self.tf, kv=KV_LEG,
+            slenderness=float(self.bf / (2 * self.tf)), reference="Eq. G6-1",
         )

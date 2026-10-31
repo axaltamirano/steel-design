@@ -21,6 +21,7 @@ from steel_design.materials.base import SteelMaterial
 from steel_design.materials.defaults import default_material_for
 from steel_design.sections.base import Section
 from steel_design.units import Q_, require_length
+from steel_design.shear import KV_BOX, ShearStrength, plate_shear
 
 
 class BuiltUpBox(Section):
@@ -223,3 +224,17 @@ class BuiltUpBox(Section):
 
     def __repr__(self) -> str:
         return f"<BuiltUpBox {self.name} ({self.material.name})>"
+
+    def shear_strength(self, axis: str = "x") -> ShearStrength:
+        """Shear strength per AISC 360-22 Section G4: two plates, ``Aw = 2 h t``, ``kv = 5``.
+
+        Args:
+            axis: ``"x"`` for shear resisted by the web plates (clear height ``h``), ``"y"``
+                for shear resisted by the flange plates (clear width ``b``).
+
+        Raises:
+            ValueError: For an invalid ``axis``.
+        """
+        if check_axis(axis) == "x":
+            return plate_shear(self.material, "x", length=self.h, thickness=self.tw, kv=KV_BOX, count=2, reference="Eq. G4-1")
+        return plate_shear(self.material, "y", length=self.b, thickness=self.tf, kv=KV_BOX, count=2, reference="Eq. G4-1")

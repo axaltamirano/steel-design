@@ -43,6 +43,8 @@ def _abs_moment(y0: float, y1: float, yp: float) -> float:
     if yp >= y1:
         return ((yp - y0) ** 2 - (yp - y1) ** 2) / 2
     return ((yp - y0) ** 2 + (y1 - yp) ** 2) / 2
+from dataclasses import replace
+from steel_design.shear import KV_LEG, ShearStrength, i_shape_web_shear, plate_shear
 
 
 class BuiltUpWideFlange(Section):
@@ -507,3 +509,31 @@ class BuiltUpWideFlange(Section):
 
     def __repr__(self) -> str:
         return f"<BuiltUpWideFlange {self.name} ({self.material.name})>"
+
+    def shear_strength(self, axis: str = "x", a=None) -> ShearStrength:
+        """Shear strength per AISC 360-22 Chapter G.
+
+        Strong-axis shear uses Section G2.1(b) (``phi_v = 0.90``, ``h`` the clear distance
+        between flanges) and, with transverse stiffeners, G2.2. Minor-axis shear sums
+        Section G6 over the two flanges.
+
+        Args:
+            axis: ``"x"`` for shear parallel to the web, ``"y"`` for shear parallel to the flanges.
+            a: Clear distance between transverse stiffeners (pint length), if any.
+
+        Raises:
+            ValueError: For an invalid ``axis``.
+        """
+        if check_axis(axis) == "x":
+            return i_shape_web_shear(
+                self.material, "x", d=self.d, tw=self.tw, h=self.h, a=a,
+                flanges=((self.bf, self.tf), (self.bf_bottom, self.tf_bottom)),
+            )
+        parts = [
+            plate_shear(
+                self.material, "y", length=bf, thickness=tf, kv=KV_LEG,
+                slenderness=float(bf / (2 * tf)), reference="Eq. G6-1",
+            )
+            for bf, tf in ((self.bf, self.tf), (self.bf_bottom, self.tf_bottom))
+        ]
+        return replace(parts[0], Vn=parts[0].Vn + parts[1].Vn, name="shear buckling" if any(p.Cv < 1 for p in parts) else "shear yielding", Cv=None)

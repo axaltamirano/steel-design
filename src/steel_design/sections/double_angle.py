@@ -26,6 +26,7 @@ from steel_design.materials.base import SteelMaterial
 from steel_design.flexure import FlexureStrength, double_angle_strength
 from steel_design.sections.angle import Angle
 from steel_design.sections.database import DatabaseShape
+from steel_design.shear import KV_LEG, ShearStrength, plate_shear
 
 
 class DoubleAngle(DatabaseShape):
@@ -160,3 +161,16 @@ class DoubleAngle(DatabaseShape):
             d=self.d, ry=self.ry, web_legs_in_tension=web_legs == "tension",
             flange_leg=flange_leg, web_leg=web_leg,
         )
+
+    def shear_strength(self, axis: str = "x") -> ShearStrength:
+        """Shear strength per AISC 360-22 Section G3, summed over the two angles (``kv = 1.2``).
+
+        Args:
+            axis: ``"x"`` for shear parallel to the web (back-to-back) legs, ``"y"`` for shear
+                parallel to the flange legs.
+
+        Raises:
+            ValueError: For an invalid ``axis``.
+        """
+        length = self.d if check_axis(axis) == "x" else self.b
+        return plate_shear(self.material, axis, length=length, thickness=self.t, kv=KV_LEG, count=2, reference="Eq. G3-1")

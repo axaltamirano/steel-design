@@ -26,6 +26,7 @@ from steel_design.flexure import (
     i_shape_minor_axis,
 )
 from steel_design.sections.database import DatabaseShape
+from steel_design.shear import KV_LEG, ShearStrength, i_shape_web_shear, plate_shear
 
 
 class MShape(DatabaseShape):
@@ -189,4 +190,28 @@ class MShape(DatabaseShape):
             self.material, Lb, Cb, Zx=self.Zx, Sxc=self.Sx, Sxt=self.Sx, Iy=self.Iy, Iyc=self.Iy / 2,
             J=self.J, ho=self.ho, tw=self.tw, bfc=self.bf, tfc=self.tf, h_tw=self.h_tw,
             flange=c["flange"], web=c["web"],
+        )
+
+    def shear_strength(self, axis: str = "x", a=None) -> ShearStrength:
+        """Shear strength per AISC 360-22 Chapter G.
+
+        Strong-axis shear uses Section G2.1 (``phi_v = 1.00`` and ``Cv1 = 1.0`` when
+        ``h/tw <= 2.24 sqrt(E/Fy)``) and, with transverse stiffeners, G2.2. Minor-axis shear
+        uses Section G6 for the two flanges.
+
+        Args:
+            axis: ``"x"`` for shear parallel to the web, ``"y"`` for shear parallel to the flanges.
+            a: Clear distance between transverse stiffeners (pint length), if any.
+
+        Raises:
+            ValueError: For an invalid ``axis``.
+        """
+        if check_axis(axis) == "x":
+            return i_shape_web_shear(
+                self.material, "x", d=self.d, tw=self.tw, h=self.h_tw * self.tw, rolled_i_shape=True,
+                a=a, flanges=((self.bf, self.tf), (self.bf, self.tf)),
+            )
+        return plate_shear(
+            self.material, "y", length=self.bf, thickness=self.tf, kv=KV_LEG, count=2,
+            slenderness=float(self.bf / (2 * self.tf)), reference="Eq. G6-1",
         )

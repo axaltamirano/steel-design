@@ -17,6 +17,7 @@ from steel_design.classification import (
 )
 from steel_design.flexure import FlexureStrength, round_hss_strength
 from steel_design.sections.database import DatabaseShape
+from steel_design.shear import ShearStrength, round_hss_shear
 
 
 class HSSRound(DatabaseShape):
@@ -95,3 +96,16 @@ class HSSRound(DatabaseShape):
         """
         axis = check_axis(axis)
         return round_hss_strength(self.material, Z=self.Zx, S=self.Sx, wall=self.classify_flexure(axis)["wall"])
+
+    def shear_strength(self, axis: str = "x", Lv=None) -> ShearStrength:
+        """Shear strength per AISC 360-22 Section G5: ``Vn = Fcr Ag / 2``.
+
+        Args:
+            axis: ``"x"`` or ``"y"``; the strength is the same in either direction.
+            Lv: Distance from maximum to zero shear force (pint length). Without it only
+                Eq. G5-2b is used, which is conservative.
+
+        Raises:
+            ValueError: For an invalid ``axis``.
+        """
+        return round_hss_shear(self.material, check_axis(axis), D=self.OD, t=self.tdes, Ag=self.A, Lv=Lv)

@@ -18,6 +18,7 @@ from steel_design.classification import (
 )
 from steel_design.flexure import FlexureStrength, rectangular_hss_strength
 from steel_design.sections.database import DatabaseShape
+from steel_design.shear import KV_BOX, ShearStrength, plate_shear
 
 
 class HSSRect(DatabaseShape):
@@ -137,3 +138,19 @@ class HSSRect(DatabaseShape):
             flange=c["flange"], web=c["web"], box=False,
             ltb=major and self.Ht != self.B,
         )
+
+    def shear_strength(self, axis: str = "x") -> ShearStrength:
+        """Shear strength per AISC 360-22 Section G4: two walls, ``Aw = 2 h t``, ``kv = 5``.
+
+        ``h`` is the flat wall width, the outside dimension less three times the design wall
+        thickness, parallel to the shear.
+
+        Args:
+            axis: ``"x"`` for shear parallel to the longer wall (``Ht``), ``"y"`` for the
+                shorter wall (``B``).
+
+        Raises:
+            ValueError: For an invalid ``axis``.
+        """
+        h = self.h if check_axis(axis) == "x" else self.b
+        return plate_shear(self.material, axis, length=h, thickness=self.tdes, kv=KV_BOX, count=2, reference="Eq. G4-1")

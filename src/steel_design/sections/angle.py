@@ -32,6 +32,7 @@ from steel_design.flexure import (
 )
 from steel_design.sections.database import DatabaseShape
 from steel_design.units import Q_
+from steel_design.shear import KV_LEG, ShearStrength, plate_shear
 
 
 class Angle(DatabaseShape):
@@ -322,3 +323,20 @@ class Angle(DatabaseShape):
         Sc = self.Sx if lateral_restraint else 0.8 * self.Sx
         legs = {"leg": (Sc, long_leg)} if toe_in_compression else {}
         return single_angle_strength(self.material, axis, My=My, Cb=Cb, ltb_My=ltb_My, Mcr=Mcr, legs=legs)
+
+    def shear_strength(self, axis: str = "x", leg: str = "long") -> ShearStrength:
+        """Shear strength per AISC 360-22 Section G3 for the leg resisting the shear (``kv = 1.2``).
+
+        Args:
+            axis: ``"x"`` or ``"y"``. Accepted for a uniform interface; the leg is selected
+                with ``leg``.
+            leg: ``"long"`` or ``"short"``, the leg parallel to the shear force.
+
+        Raises:
+            ValueError: For an invalid ``axis`` or ``leg``.
+        """
+        check_axis(axis)
+        if leg not in ("long", "short"):
+            raise ValueError("leg must be 'long' or 'short'")
+        b = max(self.d, self.b) if leg == "long" else min(self.d, self.b)
+        return plate_shear(self.material, axis, length=b, thickness=self.t, kv=KV_LEG, reference="Eq. G3-1")
