@@ -20,3 +20,7 @@ class ResistanceFactors:
     COMPRESSION: Final = 0.90
     #: Flexure, all limit states (Section F1).
     FLEXURE: Final = 0.90
+    #: Shear, all provisions of Chapter G except Section G2.1(a) (Section G1).
+    SHEAR: Final = 0.90
+    #: Shear of rolled I-shaped webs with h/tw <= 2.24 sqrt(E/Fy) (Section G2.1(a)).
+    SHEAR_ROLLED_I: Final = 1.00
