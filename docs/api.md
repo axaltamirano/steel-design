@@ -87,4 +87,19 @@
 
 .. automodule:: steel_design.shear
    :members:
+
+.. automodule:: steel_design.bolts.bolt
+   :members:
+
+.. automodule:: steel_design.bolts.materials
+   :members:
+
+.. automodule:: steel_design.bolts.holes
+   :members:
+
+.. automodule:: steel_design.bolts.group
+   :members:
+
+.. automodule:: steel_design.bolts.icr
+   :members:
 ```

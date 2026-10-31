@@ -38,3 +38,12 @@ F4, and shear with and without transverse stiffeners (tension field action).
 ```{literalinclude} ../examples/04_plate_girder.py
 :language: python
 ```
+
+## Bracket bolt group: ICR
+
+Single-bolt strengths, bearing and tearout, and the ICR strength of a bolt group for a vertical
+and an inclined eccentric load.
+
+```{literalinclude} ../examples/05_bracket_bolt_group.py
+:language: python
+```

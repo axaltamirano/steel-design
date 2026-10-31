@@ -67,6 +67,19 @@ box = BuiltUpBox(Ht=Q_(24,"in"), B=Q_(24, "in"), tf=Q_(2, "in"), tw=Q_(1, "in"))
 
 ### Shear (Chapter G)
 
+### Bolts and bolt groups (Section J3)
+
+```python
+from steel_design.bolts import A325, Bolt, BoltGroup
+
+bolt = Bolt(Q_(3/4, "in"), A325)        # A307, A325 (Group 120) and A490 (Group 150)
+bolt.get_phiRnv()                         # shear rupture, threads included
+
+# 4x2 bolt group, 3" spacing, vertical load 6" from the centroid (instantaneous center of rotation)
+group = BoltGroup.grid(4, 2, Q_(3, "in"), Q_(3, "in"), bolt)
+group.icr_strength_eccentric(Q_(6, "in")).Pn
+```
+
 ## Examples
 
 Refer to [Examples](examples/README.md) for implementation examples. 
