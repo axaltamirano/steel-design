@@ -12,3 +12,6 @@ wheels/
 # macOS
 .DS_Store
 docs/_build/
+
+# Copyrighted AISC reference material (specification PDF, shapes database)
+reference/
