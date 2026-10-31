@@ -78,3 +78,7 @@ class DoubleAngle(AngleShape):
         else:
             limit, ref = 0.45 * sqrt_E_Fy(self.material), "Table B4.1a Case 3"
         return SectionClassification((compression_element("leg", self.b_t, limit, ref),))
+
+    def classify_flexure(self, axis: str = "x") -> SectionClassification:
+        """Leg Case 12 (0.54 and 0.91 sqrt(E/Fy)) (Table B4.1b)."""
+        return super().classify_flexure(axis)

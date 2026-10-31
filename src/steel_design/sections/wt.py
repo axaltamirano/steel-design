@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pint import Quantity
 
+from steel_design.classification import SectionClassification
 from steel_design.sections.shape_groups import TeeShape
 
 
@@ -88,3 +89,11 @@ class WT(TeeShape):
     WGi: Quantity
     #: Bolt spacing between inner and outer fastener holes when the workable gage fits four holes across the flange, in.
     WGo: Quantity | None
+
+    def classify_compression(self) -> SectionClassification:
+        """Flange Case 1 (0.56 sqrt(E/Fy)) and stem Case 4 (0.75 sqrt(E/Fy)) (Table B4.1a)."""
+        return super().classify_compression()
+
+    def classify_flexure(self, axis: str = "x") -> SectionClassification:
+        """Flange Case 10 and stem Case 14 (0.84 and 1.52 sqrt(E/Fy)) about the x-axis (Section F9); the y-axis checks the flange only (Table B4.1b)."""
+        return super().classify_flexure(axis)

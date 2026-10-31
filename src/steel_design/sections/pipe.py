@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pint import Quantity
 
+from steel_design.classification import SectionClassification
 from steel_design.sections.shape_groups import RoundTubeShape
 
 
@@ -48,3 +49,11 @@ class Pipe(RoundTubeShape):
     ry: Quantity
     #: Torsional constant, in.⁴.
     J: Quantity
+
+    def classify_compression(self) -> SectionClassification:
+        """Wall Case 9 (0.11 E/Fy) (Table B4.1a)."""
+        return super().classify_compression()
+
+    def classify_flexure(self, axis: str = "x") -> SectionClassification:
+        """Wall Case 20 (0.07 and 0.31 E/Fy); independent of axis (Table B4.1b)."""
+        return super().classify_flexure(axis)

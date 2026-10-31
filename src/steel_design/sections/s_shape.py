@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pint import Quantity
 
+from steel_design.classification import SectionClassification
 from steel_design.sections.shape_groups import RolledIShape
 
 
@@ -90,3 +91,11 @@ class SShape(RolledIShape):
     T: Quantity
     #: Workable gage for the inner fastener holes in the flange, in.
     WGi: Quantity | None
+
+    def classify_compression(self) -> SectionClassification:
+        """Flange Case 1 (0.56 sqrt(E/Fy)) and web Case 5 (1.49 sqrt(E/Fy)) (Table B4.1a)."""
+        return super().classify_compression()
+
+    def classify_flexure(self, axis: str = "x") -> SectionClassification:
+        """Major axis: flange Case 10 (0.38 and 1.0 sqrt(E/Fy)) and web Case 15 (3.76 and 5.70 sqrt(E/Fy)). Minor axis: flange Case 13 only (Table B4.1b)."""
+        return super().classify_flexure(axis)
