@@ -37,4 +37,4 @@ Scope
 
 Implemented so far: materials, the shapes database, built-up sections and
 Section B4 local-buckling classification, Chapter D tension (D1 to D3), Chapter E
-compression and Chapter F flexure. Shear (Chapter G) is planned.
+compression and Chapter F flexure and Chapter G shear.

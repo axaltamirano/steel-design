@@ -84,3 +84,6 @@ API reference
 
 .. automodule:: steel_design.flexure
    :members:
+
+.. automodule:: steel_design.shear
+   :members:

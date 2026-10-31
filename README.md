@@ -33,6 +33,10 @@ Flexure (AISC 360-22 Chapter F): `w.flexure_strength("x", Lb=Q_(8, "ft"), Cb=1.0
 state (yielding, LTB, flange/web local buckling); `get_Mnx`/`get_phiMnx`/`get_Mny`/`get_phiMny` give the governing
 strength in kip-ft. `Cb` is user-supplied.
 
+Shear (AISC 360-22 Chapter G): `w.shear_strength("x")` is shear parallel to the web and `"y"` shear parallel to the
+flanges (the axis of bending the shear accompanies). `get_Vnx`/`get_phiVnx`/`get_Vny`/`get_phiVny` return kips.
+Pass `a=` (stiffener spacing) to I-shapes for tension field action; round HSS accept `Lv=`.
+
 The library is LRFD only. All resistance factors live in `steel_design.resistance_factors.ResistanceFactors`.
 Each shape has `get_Pnt`/`get_phiPnt` (tension) and `get_Pnc`/`get_phiPnc` (compression) for the nominal and
 design strength of the governing limit state, in kips.
