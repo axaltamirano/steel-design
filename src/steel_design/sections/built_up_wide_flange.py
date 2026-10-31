@@ -1,0 +1,292 @@
+"""Built-up (plate-fabricated) I-shaped section, doubly or singly symmetric."""
+
+from __future__ import annotations
+
+from functools import cached_property
+
+from steel_design.materials.base import SteelMaterial
+from steel_design.materials.defaults import default_material_for
+from steel_design.sections.base import Section
+from steel_design.units import Q_, require_length
+
+
+def _abs_moment(y0: float, y1: float, yp: float) -> float:
+    """Integral of |y - yp| dy over [y0, y1]."""
+    if yp <= y0:
+        return ((y1 - yp) ** 2 - (y0 - yp) ** 2) / 2
+    if yp >= y1:
+        return ((yp - y0) ** 2 - (yp - y1) ** 2) / 2
+    return ((yp - y0) ** 2 + (y1 - yp) ** 2) / 2
+
+
+class BuiltUpWideFlange(Section):
+    """I-shape from three plates, with no fillets (welds ignored).
+
+    Parameters are pint length quantities: overall depth `d`, web thickness `tw`, and the
+    top flange `bf` x `tf`. The bottom flange defaults to the top flange (doubly symmetric);
+    pass `bf_bottom` and/or `tf_bottom` for a singly symmetric section. Flanges are centered
+    on the web. Property names match the AISC database where one exists.
+    """
+
+    family = "BUILT_UP_WF"
+
+    def __init__(
+        self,
+        d,
+        bf,
+        tf,
+        tw,
+        material: type[SteelMaterial] | None = None,
+        name: str | None = None,
+        bf_bottom=None,
+        tf_bottom=None,
+    ):
+        """Create an I-shape.
+
+        Args:
+            d: Overall depth (length quantity).
+            bf: Top flange width (length quantity).
+            tf: Top flange thickness (length quantity).
+            tw: Web thickness (length quantity).
+            material: Material class; defaults to the ``BUILT_UP_WF`` default.
+            name: Optional label; generated from the dimensions when omitted.
+            bf_bottom: Bottom flange width; defaults to ``bf``.
+            tf_bottom: Bottom flange thickness; defaults to ``tf``.
+
+        Raises:
+            TypeError: If a dimension is not a pint quantity.
+            ValueError: If a dimension is non-positive or the plates do not fit together.
+        """
+        self.d = require_length(d, "d")
+        self.bf = require_length(bf, "bf")
+        self.tf = require_length(tf, "tf")
+        self.tw = require_length(tw, "tw")
+        self.bf_bottom = self.bf if bf_bottom is None else require_length(bf_bottom, "bf_bottom")
+        self.tf_bottom = self.tf if tf_bottom is None else require_length(tf_bottom, "tf_bottom")
+        dims = (self.d, self.bf, self.tf, self.tw, self.bf_bottom, self.tf_bottom)
+        if min(x.m for x in dims) <= 0:
+            raise ValueError("All dimensions must be positive")
+        if self.tf + self.tf_bottom >= self.d:
+            raise ValueError("Flanges must be thinner than the overall depth d")
+        if self.tw >= min(self.bf, self.bf_bottom):
+            raise ValueError("Web thickness tw must be less than both flange widths")
+        self.material = material or default_material_for(self.family)
+        if name is None:
+            flange = f"{self.bf.m:g}x{self.tf.m:g}"
+            if not self.is_doubly_symmetric:
+                flange += f"/{self.bf_bottom.m:g}x{self.tf_bottom.m:g}"
+            name = f"PG{self.d.m:g}x{self.tw.m:g}/{flange}"
+        self.name = name
+
+    # --- plain-inch geometry used by the property formulas -------------------------
+
+    @cached_property
+    def _g(self) -> dict[str, float]:
+        """Dimensions as plain inch floats; keys d, tw, bt/tt (top flange), bb/tb (bottom flange), h."""
+        d, tw = self.d.to("in").m, self.tw.to("in").m
+        bt, tt = self.bf.to("in").m, self.tf.to("in").m
+        bb, tb = self.bf_bottom.to("in").m, self.tf_bottom.to("in").m
+        return {"d": d, "tw": tw, "bt": bt, "tt": tt, "bb": bb, "tb": tb, "h": d - tt - tb}
+
+    @cached_property
+    def _pieces(self) -> list[tuple[float, float, float]]:
+        """(width, y0, y1) of each plate, measured up from the bottom of the section."""
+        g = self._g
+        return [
+            (g["bb"], 0.0, g["tb"]),
+            (g["tw"], g["tb"], g["tb"] + g["h"]),
+            (g["bt"], g["tb"] + g["h"], g["d"]),
+        ]
+
+    @cached_property
+    def _area(self) -> float:
+        """Area in square inches."""
+        return sum(w * (y1 - y0) for w, y0, y1 in self._pieces)
+
+    @cached_property
+    def _ybar(self) -> float:
+        """Elastic centroid, measured from the bottom face."""
+        return sum(w * (y1 - y0) * (y0 + y1) / 2 for w, y0, y1 in self._pieces) / self._area
+
+    @cached_property
+    def _yp(self) -> float:
+        """Plastic neutral axis, measured from the bottom face."""
+        half, acc = self._area / 2, 0.0
+        for w, y0, y1 in self._pieces:
+            if acc + w * (y1 - y0) >= half:
+                return y0 + (half - acc) / w
+            acc += w * (y1 - y0)
+        raise AssertionError("unreachable")
+
+    @cached_property
+    def _Ix(self) -> float:
+        """Major-axis moment of inertia in in^4, by the parallel-axis theorem."""
+        return sum(
+            w * (y1 - y0) ** 3 / 12 + w * (y1 - y0) * ((y0 + y1) / 2 - self._ybar) ** 2
+            for w, y0, y1 in self._pieces
+        )
+
+    @cached_property
+    def _Iy(self) -> float:
+        """Minor-axis moment of inertia in in^4."""
+        g = self._g
+        return (g["tt"] * g["bt"] ** 3 + g["tb"] * g["bb"] ** 3 + g["h"] * g["tw"] ** 3) / 12
+
+    # --- geometry ------------------------------------------------------------------
+
+    @cached_property
+    def is_doubly_symmetric(self) -> bool:
+        """True when the top and bottom flanges have equal width and thickness."""
+        return bool(self.bf == self.bf_bottom and self.tf == self.tf_bottom)
+
+    @cached_property
+    def h(self):
+        """Clear distance between flanges."""
+        return Q_(self._g["h"], "in")
+
+    @cached_property
+    def ho(self):
+        """Distance between flange centroids."""
+        g = self._g
+        return Q_(g["d"] - (g["tt"] + g["tb"]) / 2, "in")
+
+    # --- section properties --------------------------------------------------------
+
+    @cached_property
+    def A(self):
+        """Cross-sectional area."""
+        return Q_(self._area, "in**2")
+
+    @cached_property
+    def weight(self):
+        """Weight per unit length, from the material unit weight."""
+        return (self.A * self.material.density).to("lbf/ft")
+
+    @cached_property
+    def y_bar(self):
+        """Elastic neutral axis, measured from the bottom face."""
+        return Q_(self._ybar, "in")
+
+    @cached_property
+    def y_p(self):
+        """Plastic neutral axis, measured from the bottom face."""
+        return Q_(self._yp, "in")
+
+    @cached_property
+    def Ix(self):
+        """Moment of inertia about the x-axis (strong axis)."""
+        return Q_(self._Ix, "in**4")
+
+    @cached_property
+    def Sx_top(self):
+        """Elastic section modulus referred to the top flange."""
+        return Q_(self._Ix / (self._g["d"] - self._ybar), "in**3")
+
+    @cached_property
+    def Sx_bottom(self):
+        """Elastic section modulus referred to the bottom flange."""
+        return Q_(self._Ix / self._ybar, "in**3")
+
+    @cached_property
+    def Sx(self):
+        """Smaller of the two elastic moduli (first yield)."""
+        return min(self.Sx_top, self.Sx_bottom)
+
+    @cached_property
+    def Zx(self):
+        """Plastic section modulus about the x-axis, taken about the plastic neutral axis."""
+        return Q_(sum(w * _abs_moment(y0, y1, self._yp) for w, y0, y1 in self._pieces), "in**3")
+
+    @cached_property
+    def Iy(self):
+        """Moment of inertia about the y-axis (weak axis)."""
+        return Q_(self._Iy, "in**4")
+
+    @cached_property
+    def Sy(self):
+        """Elastic section modulus about the y-axis, referred to the wider flange."""
+        return Q_(2 * self._Iy / max(self._g["bt"], self._g["bb"]), "in**3")
+
+    @cached_property
+    def Zy(self):
+        """Plastic section modulus about the y-axis."""
+        g = self._g
+        return Q_((g["tt"] * g["bt"] ** 2 + g["tb"] * g["bb"] ** 2 + g["h"] * g["tw"] ** 2) / 4, "in**3")
+
+    @cached_property
+    def rx(self):
+        """Radius of gyration about the x-axis."""
+        return ((self.Ix / self.A) ** 0.5).to("in")
+
+    @cached_property
+    def ry(self):
+        """Radius of gyration about the y-axis."""
+        return ((self.Iy / self.A) ** 0.5).to("in")
+
+    @cached_property
+    def J(self):
+        """Torsional constant, sum of b*t^3/3 over the three plates."""
+        g = self._g
+        return Q_((g["bt"] * g["tt"] ** 3 + g["bb"] * g["tb"] ** 3 + g["h"] * g["tw"] ** 3) / 3, "in**4")
+
+    @cached_property
+    def Cw(self):
+        """Warping constant. The web's Iy is split equally between the flanges, which reduces
+        to Iy*ho^2/4 for doubly symmetric sections."""
+        g = self._g
+        iyw = g["h"] * g["tw"] ** 3 / 12
+        it = g["tt"] * g["bt"] ** 3 / 12 + iyw / 2
+        ib = g["tb"] * g["bb"] ** 3 / 12 + iyw / 2
+        return Q_(it * ib / (it + ib) * self.ho.m**2, "in**6")
+
+    @cached_property
+    def rts(self):
+        """Effective radius of gyration for LTB, AISC 360-22 Eq. F2-7 (doubly symmetric only)."""
+        if not self.is_doubly_symmetric:
+            raise NotImplementedError("rts (Eq. F2-7) applies to doubly symmetric sections; use rt from Sect. F4")
+        return (((self.Iy * self.Cw) ** 0.5 / self.Sx) ** 0.5).to("in")
+
+    @cached_property
+    def bf_2tf(self):
+        """Top-flange slenderness; see `bf_2tf_bottom` for the bottom flange."""
+        return float(self.bf / (2 * self.tf))
+
+    @cached_property
+    def bf_2tf_bottom(self):
+        """Bottom-flange slenderness, ``bf_bottom / (2 tf_bottom)`` (dimensionless)."""
+        return float(self.bf_bottom / (2 * self.tf_bottom))
+
+    @cached_property
+    def h_tw(self):
+        """Web slenderness, clear height ``h`` over ``tw`` (dimensionless)."""
+        return float(self.h / self.tw)
+
+    # --- web properties relative to the compression flange -------------------------
+
+    def hc(self, compression_flange: str = "top"):
+        """Twice the distance from the elastic centroid to the inside face of the compression flange.
+
+        Args:
+            compression_flange: ``"top"`` or ``"bottom"``.
+        """
+        return self._web_depth(compression_flange, self._ybar)
+
+    def hp(self, compression_flange: str = "top"):
+        """Twice the distance from the plastic neutral axis to the inside face of the compression flange.
+
+        Args:
+            compression_flange: ``"top"`` or ``"bottom"``.
+        """
+        return self._web_depth(compression_flange, self._yp)
+
+    def _web_depth(self, compression_flange: str, y: float):
+        """Twice the distance from height ``y`` (above the bottom face) to the inside face of the chosen flange."""
+        g = self._g
+        if compression_flange == "top":
+            return Q_(2 * (g["d"] - g["tt"] - y), "in")
+        if compression_flange == "bottom":
+            return Q_(2 * (y - g["tb"]), "in")
+        raise ValueError("compression_flange must be 'top' or 'bottom'")
+
+    def __repr__(self) -> str:
+        return f"<BuiltUpWideFlange {self.name} ({self.material.name})>"
