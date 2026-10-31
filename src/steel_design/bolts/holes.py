@@ -43,7 +43,7 @@ def hole_dimensions(diameter, hole: HoleType = HoleType.STANDARD):
     d = require_length(diameter, "diameter").m
     if d < 0.5 - 1e-9:
         raise ValueError("Table J3.3 starts at a 1/2 in. bolt")
-    standard = d + 1 / 16
+    standard = d + 1 / 16 if d < 1 - 1e-9 else d + 1 / 8
     if hole is HoleType.STANDARD:
         width = length = standard
     elif hole is HoleType.OVERSIZE:

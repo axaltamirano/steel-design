@@ -91,8 +91,27 @@ have equal strength.
 Notes:
 
 - The farthest bolt carries `Rult (1 - exp(-3.4)) ** 0.55 = 0.98 Rult`, so the strength is
-  slightly below `n phi rn` as the eccentricity approaches zero. A load exactly through the
+  slightly below `n phi rn` as the eccentricity approaches zero (the Manual's tables use the
+  same curve). A load exactly through the
   centroid is concentric and uses the full `n phi rn`.
 - `Lc` is a single value per bolt. The direction of bearing varies with the ICR, so use the
   smallest clear distance a bolt can bear against.
 - Only in-plane eccentric shear is implemented. Prying action and eccentric tension are not.
+
+## Verification against the Manual
+
+The test suite compares the library with the 16th Edition Manual, Part 7:
+
+- Tables 7-1 to 7-3 (shear, tension and slip resistance): all values agree with the published
+  `phi rn`. The Manual rounds the nominal bolt area to three figures, so shear values for
+  bolts of 1-1/8 in. and larger differ by up to about 1%.
+- Tables 7-4 and 7-5 (bearing and tearout based on spacing and edge distance): all 169 values
+  checked agree, for standard, oversize, short-slot and long-slot holes.
+- Tables 7-6 to 7-13 (coefficients `C`): all 20,652 published values were compared. The mean
+  difference is zero, and nearly all values agree within the rounding of the table. Where they
+  differ, the library is generally lower, by at most about 2%, at small eccentricities with
+  steep load angles. A sample of 384 values is in the test suite.
+
+In the tables the angle is measured from the vertical with the load inclined toward the bolt
+group, and `ex` is measured horizontally from the centroid to the line of action, so compare
+with `group.icr_strength((ex, 0 in.), angle=-theta).C`.

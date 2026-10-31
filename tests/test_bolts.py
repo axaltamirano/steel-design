@@ -16,6 +16,8 @@ from steel_design.bolts import (
     Ply,
     SlipClass,
     hole_dimensions,
+    lc_from_edge,
+    lc_from_spacing,
     min_edge_distance,
 )
 from steel_design.bolts.icr import bolt_force
@@ -122,7 +124,9 @@ def test_hole_helpers():
     w, ln = hole_dimensions(i(0.75), HoleType.SHORT_SLOT)
     assert (w.m, ln.m) == (pytest.approx(13 / 16), pytest.approx(1.0))
     assert hole_dimensions(i(0.75), HoleType.LONG_SLOT)[1].m == pytest.approx(1.875)
-    assert hole_dimensions(i(1.25))[0].m == pytest.approx(1.3125)
+    assert hole_dimensions(i(0.875))[0].m == pytest.approx(15 / 16)
+    assert hole_dimensions(i(1.0))[0].m == pytest.approx(1.125)  # d + 1/8 from 1 in. up
+    assert hole_dimensions(i(1.25))[0].m == pytest.approx(1.375)
     assert min_edge_distance(i(0.75)).m == 1.0
     assert min_edge_distance(i(1.5)).m == pytest.approx(1.875)
     assert min_edge_distance(i(0.75), HoleType.OVERSIZE).m == pytest.approx(1.0625)
@@ -293,3 +297,80 @@ def test_icr_with_unequal_bolt_strengths_is_in_equilibrium():
     concentric = group.icr_strength((i(xw), i(yw)), angle=0)
     assert concentric.icr is None
     assert kips(concentric.Pn) == pytest.approx(sum(rult))
+
+
+# Manual Tables 7-6 to 7-13 (Coefficients C for Eccentrically Loaded Bolt Groups)
+MANUAL_C_GROUPS = {  # table: (vertical lines of bolts, spacing between lines in in.)
+    "7-6": (1, 0),
+    "7-7": (2, 3),
+    "7-8": (2, 5.5),
+    "7-9": (2, 8),
+    "7-10": (3, 3),
+    "7-11": (3, 6),
+    "7-12": (4, 3),
+    "7-13": (4, 4),
+}
+
+
+def _manual_c_cases():
+    import csv
+    from pathlib import Path
+
+    with open(Path(__file__).parent / "data" / "manual_part7_C.csv") as f:
+        return [
+            (r["table"], int(r["angle"]), float(r["s"]), float(r["ex"]), int(r["n"]), float(r["C"]))
+            for r in csv.DictReader(f)
+        ]
+
+
+@pytest.mark.parametrize("table,angle,s,ex,n,C", _manual_c_cases())
+def test_icr_coefficient_matches_manual_part_7(table, angle, s, ex, n, C):
+    """A sample of the published C values (Tables 7-6 to 7-13, every angle and table).
+
+    The Manual measures ``ex`` horizontally from the centroid to the line of action, with the
+    load inclined toward the bolt group, so the library angle is negative for an ``ex`` > 0.
+    Published values are rounded to three significant figures and were produced with a
+    slightly different solution tolerance, so a 3% tolerance is allowed.
+    """
+    m, sx = MANUAL_C_GROUPS[table]
+    group = BoltGroup.grid(n, m, i(s), i(sx), Bolt(i(0.75), A325))
+    result = group.icr_strength((i(ex), i(0)), angle=-angle)
+    assert result.converged
+    assert result.C == pytest.approx(C, rel=0.03, abs=0.006)
+
+
+@pytest.mark.parametrize(
+    "d,hole,spacing,expected",
+    [  # Table 7-4, Fu = 65 ksi, kip per in. of thickness (phi Rn), 2-2/3 d spacing
+        (0.75, HoleType.STANDARD, "min", 69.5),
+        (1.0, HoleType.STANDARD, "min", 90.2),
+        (1.5, HoleType.STANDARD, "min", 139.0),
+        (0.75, HoleType.OVERSIZE, "min", 62.2),
+        (1.0, HoleType.SHORT_SLOT, 3.0, 110.0),
+    ],
+)
+def test_bearing_tearout_matches_manual_table_7_4(d, hole, spacing, expected):
+    """Bearing and tearout based on spacing, Manual Table 7-4 (hole deformation considered)."""
+    s = (8 / 3) * d if spacing == "min" else spacing
+    # Short-slot rows of the table are the SSLT case: the slot is transverse to the load
+    length = hole_dimensions(i(d), hole if hole is not HoleType.SHORT_SLOT else HoleType.STANDARD)[1]
+    ply = Ply(i(1), Q_(65, "ksi"), lc_from_spacing(i(s), length))
+    result = Bolt(i(d), A325).bearing_tearout_strength(ply)
+    assert kips(result.design_strength) == pytest.approx(expected, abs=0.5)
+
+
+@pytest.mark.parametrize(
+    "d,edge,expected",
+    [  # Table 7-5, Fu = 65 ksi, standard holes, phi Rn per in. of thickness
+        (0.75, 1.25, 49.4),
+        (1.0, 1.25, 40.2),
+        (1.0, 2.0, 84.1),
+        (1.5, 2.0, 69.5),
+    ],
+)
+def test_bearing_tearout_matches_manual_table_7_5(d, edge, expected):
+    """Bearing and tearout based on edge distance, Manual Table 7-5."""
+    length = hole_dimensions(i(d))[1]
+    ply = Ply(i(1), Q_(65, "ksi"), lc_from_edge(i(edge), length))
+    result = Bolt(i(d), A325).bearing_tearout_strength(ply)
+    assert kips(result.design_strength) == pytest.approx(expected, abs=0.06)
