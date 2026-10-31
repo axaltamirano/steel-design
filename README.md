@@ -22,12 +22,16 @@ box = BuiltUpBox(Ht=Q_(12, "in"), B=Q_(10, "in"), tf=Q_(0.5, "in"), tw=Q_(0.5, "
 - **Units**: dimensions must be pint quantities; bare floats are rejected.
 
 Tension (AISC 360-22 Chapter D): `w.tension_strength(An=Q_(22, "in**2"), U=0.9)` returns the yielding
-(D2-1) and rupture (D2-2) limit states with LRFD and ASD strengths. `An` defaults to the gross area and the
+(D2-1) and rupture (D2-2) limit states with LRFD design strengths. `An` defaults to the gross area and the
 shear lag factor `U` is always user-supplied (default 1.0).
 
 Compression (AISC 360-22 Chapter E): `w.compression_strength(Lx=Q_(10, "ft"), Ly=None, Kx=1.0, Ky=1.0)` checks
 flexural (E3), torsional and flexural-torsional (E4) buckling with the slender-element reduction of E7.
 Single angles use `a.compression_strength(L, K, e5="planar")` for the Section E5 effective slenderness.
+
+The library is LRFD only. All resistance factors live in `steel_design.resistance_factors.ResistanceFactors`.
+Each shape has `get_Pnt`/`get_phiPnt` (tension) and `get_Pnc`/`get_phiPnc` (compression) for the nominal and
+design strength of the governing limit state, in kips.
 
 Tests: `uv run pytest`
 

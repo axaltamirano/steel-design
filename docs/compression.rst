@@ -14,10 +14,9 @@ elements (E7). Every section provides
    w = WideFlange("W14X90")
    c = w.compression_strength(Lx=Q_(10, "ft"))   # Ly defaults to Lx, Lz to Ly
 
-   c.design_strength          # governing LRFD strength, phi_c Pn, kip
-   c.allowable_strength       # governing ASD strength, Pn / omega_c, kip
-   c.governing_lrfd.name      # "torsional buckling"
-   c.governing_lrfd.Fe        # elastic buckling stress, Fe
+   c.design_strength          # governing design strength, phi_c Pn, kip
+   c.governing.name           # "torsional buckling"
+   c.governing.Fe        # elastic buckling stress, Fe
    c.exceeds_recommended_slenderness   # KL/r > 200 (Section E2)
 
 ``Lx``, ``Ly`` and ``Lz`` are the unbraced lengths for buckling about x, about y and for twist;
@@ -26,9 +25,17 @@ elements (E7). Every section provides
 Strength
 --------
 
-``Pn = Fn Ae`` with ``phi_c = 0.90`` and ``omega_c = 1.67``. ``Fn`` is ``0.658^(Fy/Fe) Fy``
+``Pn = Fn Ae`` with ``phi_c = 0.90`` (LRFD only). ``Fn`` is ``0.658^(Fy/Fe) Fy``
 when ``Fy/Fe <= 2.25`` (E3-2) and ``0.877 Fe`` otherwise (E3-3). ``Ae`` is the gross area
 for nonslender sections. The strength is the lowest of the buckling modes of the shape.
+
+Shortcuts
+---------
+
+.. code-block:: python
+
+   w.get_Pnc(Q_(10, "ft"))      # nominal strength Pn of the governing limit state, kip
+   w.get_phiPnc(Q_(10, "ft"))   # governing design strength phi_c Pn, kip
 
 Buckling modes by shape
 -----------------------

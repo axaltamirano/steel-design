@@ -82,6 +82,24 @@ class Section:
         radii = [getattr(self, n, None) for n in ("rx", "ry", "rz")]
         return slenderness_ratio(length, min(r for r in radii if r is not None))
 
+    def get_Pnt(self, An=None, U: float = 1.0):
+        """Nominal tensile strength ``Pn`` of the limit state with the lowest design strength
+        (Chapter D), in kips. See :meth:`tension_strength` for the arguments."""
+        return self.tension_strength(An, U).governing.Pn.to("kip")
+
+    def get_phiPnt(self, An=None, U: float = 1.0):
+        """Governing tensile design strength ``phi Pn`` (Chapter D), in kips."""
+        return self.tension_strength(An, U).design_strength.to("kip")
+
+    def get_Pnc(self, Lx, Ly=None, Lz=None, Kx: float = 1.0, Ky: float = 1.0, Kz: float = 1.0):
+        """Nominal compressive strength ``Pn`` of the limit state with the lowest design
+        strength (Chapter E), in kips. See :meth:`compression_strength` for the arguments."""
+        return self.compression_strength(Lx, Ly, Lz, Kx, Ky, Kz).governing.Pn.to("kip")
+
+    def get_phiPnc(self, Lx, Ly=None, Lz=None, Kx: float = 1.0, Ky: float = 1.0, Kz: float = 1.0):
+        """Governing compressive design strength ``phi_c Pn`` (Chapter E), in kips."""
+        return self.compression_strength(Lx, Ly, Lz, Kx, Ky, Kz).design_strength.to("kip")
+
     def buckling_modes(self, Lcx, Lcy, Lcz) -> tuple[BucklingMode, ...]:
         """Elastic buckling modes to check in compression (Sections E3 and E4).
 

@@ -21,10 +21,8 @@ from typing import Final
 import pint
 
 from steel_design.materials.base import SteelMaterial
+from steel_design.resistance_factors import ResistanceFactors
 from steel_design.units import require_length
-
-PHI_COMPRESSION: Final = 0.90
-OMEGA_COMPRESSION: Final = 1.67
 
 #: Recommended maximum effective slenderness ratio, KL/r (E2 User Note).
 MAX_RECOMMENDED_SLENDERNESS: Final = 200
@@ -331,8 +329,7 @@ class CompressionLimitState:
         Pn: Nominal compressive strength, ``Fn Ae``.
         slenderness: Effective slenderness ``Lc/r`` for flexural modes, otherwise ``None``.
         reductions: Effective widths of the slender elements, empty when the area is not reduced.
-        phi: Resistance factor (LRFD).
-        omega: Safety factor (ASD).
+        phi: Resistance factor, from :class:`~steel_design.resistance_factors.ResistanceFactors`.
     """
 
     name: str
@@ -343,18 +340,12 @@ class CompressionLimitState:
     Pn: pint.Quantity
     slenderness: float | None = None
     reductions: tuple[ElementReduction, ...] = ()
-    phi: float = PHI_COMPRESSION
-    omega: float = OMEGA_COMPRESSION
+    phi: float = ResistanceFactors.COMPRESSION
 
     @property
     def design_strength(self) -> pint.Quantity:
-        """LRFD design strength, ``phi_c Pn``, in kips."""
+        """design strength, ``phi_c Pn``, in kips."""
         return (self.phi * self.Pn).to("kip")
-
-    @property
-    def allowable_strength(self) -> pint.Quantity:
-        """ASD allowable strength, ``Pn / omega_c``, in kips."""
-        return (self.Pn / self.omega).to("kip")
 
 
 @dataclass(frozen=True)
@@ -373,23 +364,13 @@ class CompressionStrength:
 
     @property
     def design_strength(self) -> pint.Quantity:
-        """Governing LRFD design strength, ``phi_c Pn``, in kips."""
+        """Governing design strength, ``phi_c Pn``, in kips."""
         return min(ls.design_strength for ls in self.limit_states)
 
     @property
-    def allowable_strength(self) -> pint.Quantity:
-        """Governing ASD allowable strength, ``Pn / omega_c``, in kips."""
-        return min(ls.allowable_strength for ls in self.limit_states)
-
-    @property
-    def governing_lrfd(self) -> CompressionLimitState:
-        """The limit state with the lowest LRFD design strength."""
+    def governing(self) -> CompressionLimitState:
+        """The limit state with the lowest design strength."""
         return min(self.limit_states, key=lambda ls: ls.design_strength)
-
-    @property
-    def governing_asd(self) -> CompressionLimitState:
-        """The limit state with the lowest ASD allowable strength."""
-        return min(self.limit_states, key=lambda ls: ls.allowable_strength)
 
     @property
     def slenderness_ratio(self) -> float | None:

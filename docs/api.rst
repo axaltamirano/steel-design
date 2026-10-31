@@ -70,6 +70,9 @@ API reference
 .. automodule:: steel_design.sections.pipe
    :members:
 
+.. automodule:: steel_design.resistance_factors
+   :members:
+
 .. automodule:: steel_design.tension
    :members:
 

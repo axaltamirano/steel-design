@@ -12,12 +12,8 @@ from dataclasses import dataclass
 
 import pint
 
+from steel_design.resistance_factors import ResistanceFactors
 from steel_design.units import require_length
-
-PHI_YIELDING = 0.90
-OMEGA_YIELDING = 1.67
-PHI_RUPTURE = 0.75
-OMEGA_RUPTURE = 2.00
 
 #: Recommended maximum slenderness ratio for members designed on the basis of tension (D1 User Note).
 MAX_RECOMMENDED_SLENDERNESS = 300
@@ -30,26 +26,19 @@ class TensionLimitState:
     Attributes:
         name: Limit state name.
         Pn: Nominal tensile strength.
-        phi: Resistance factor (LRFD).
-        omega: Safety factor (ASD).
+        phi: Resistance factor, from :class:`~steel_design.resistance_factors.ResistanceFactors`.
         reference: Specification equation.
     """
 
     name: str
     Pn: pint.Quantity
     phi: float
-    omega: float
     reference: str
 
     @property
     def design_strength(self) -> pint.Quantity:
-        """LRFD design strength, ``phi * Pn``, in kips."""
+        """Design strength, ``phi * Pn``, in kips."""
         return (self.phi * self.Pn).to("kip")
-
-    @property
-    def allowable_strength(self) -> pint.Quantity:
-        """ASD allowable strength, ``Pn / omega``, in kips."""
-        return (self.Pn / self.omega).to("kip")
 
 
 @dataclass(frozen=True)
@@ -79,23 +68,13 @@ class TensionStrength:
 
     @property
     def design_strength(self) -> pint.Quantity:
-        """Governing LRFD design strength, ``phi_t * Pn``, in kips."""
+        """Governing design strength, ``phi_t * Pn``, in kips."""
         return min(ls.design_strength for ls in self.limit_states)
 
     @property
-    def allowable_strength(self) -> pint.Quantity:
-        """Governing ASD allowable strength, ``Pn / omega_t``, in kips."""
-        return min(ls.allowable_strength for ls in self.limit_states)
-
-    @property
-    def governing_lrfd(self) -> TensionLimitState:
-        """The limit state with the lower LRFD design strength."""
+    def governing(self) -> TensionLimitState:
+        """The limit state with the lower design strength."""
         return min(self.limit_states, key=lambda ls: ls.design_strength)
-
-    @property
-    def governing_asd(self) -> TensionLimitState:
-        """The limit state with the lower ASD allowable strength."""
-        return min(self.limit_states, key=lambda ls: ls.allowable_strength)
 
 
 def _area(value: object, name: str) -> pint.Quantity:
@@ -125,14 +104,14 @@ def effective_net_area(An: pint.Quantity, U: float = 1.0) -> pint.Quantity:
 def tensile_yielding(Ag: pint.Quantity, Fy: pint.Quantity) -> TensionLimitState:
     """Tensile yielding in the gross section, ``Pn = Fy * Ag`` (Eq. D2-1)."""
     return TensionLimitState(
-        "tensile yielding", (Fy * _area(Ag, "Ag")).to("kip"), PHI_YIELDING, OMEGA_YIELDING, "Eq. D2-1"
+        "tensile yielding", (Fy * _area(Ag, "Ag")).to("kip"), ResistanceFactors.TENSION_YIELDING, "Eq. D2-1"
     )
 
 
 def tensile_rupture(Ae: pint.Quantity, Fu: pint.Quantity) -> TensionLimitState:
     """Tensile rupture in the net section, ``Pn = Fu * Ae`` (Eq. D2-2)."""
     return TensionLimitState(
-        "tensile rupture", (Fu * _area(Ae, "Ae")).to("kip"), PHI_RUPTURE, OMEGA_RUPTURE, "Eq. D2-2"
+        "tensile rupture", (Fu * _area(Ae, "Ae")).to("kip"), ResistanceFactors.TENSION_RUPTURE, "Eq. D2-2"
     )
 
 

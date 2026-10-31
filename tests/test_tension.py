@@ -14,7 +14,6 @@ def test_w14x90_gross_yielding_hand_calc():
     t = WideFlange("W14X90").tension_strength()
     assert t.yielding.Pn.m == pytest.approx(50 * 26.5)
     assert t.yielding.design_strength.m == pytest.approx(0.9 * 50 * 26.5)
-    assert t.yielding.allowable_strength.m == pytest.approx(50 * 26.5 / 1.67)
     assert t.yielding.reference == "Eq. D2-1"
 
 
@@ -23,8 +22,7 @@ def test_rupture_with_net_area_and_shear_lag():
     assert t.Ae.m == pytest.approx(19.8)
     assert t.rupture.Pn.m == pytest.approx(65 * 19.8)
     assert t.rupture.design_strength.m == pytest.approx(0.75 * 65 * 19.8)
-    assert t.rupture.allowable_strength.m == pytest.approx(65 * 19.8 / 2.0)
-    assert t.governing_lrfd is t.rupture and t.governing_asd is t.rupture
+    assert t.governing is t.rupture
     assert t.design_strength == t.rupture.design_strength
 
 
@@ -32,7 +30,7 @@ def test_defaults_are_no_holes_and_full_shear_lag():
     t = WideFlange("W14X90").tension_strength()
     assert t.An == t.Ag and t.U == 1.0 and t.Ae == t.Ag
     # With Ae = Ag, yielding governs LRFD (0.9*50 < 0.75*65 is false: 45 < 48.75)
-    assert t.governing_lrfd is t.yielding
+    assert t.governing is t.yielding
 
 
 def test_material_changes_strength():
@@ -82,3 +80,12 @@ def test_slenderness_ratio_uses_least_radius():
     assert box.tension_slenderness_ratio(Q_(10, "ft")) == pytest.approx(120 / min(box.rx.m, box.ry.m))
     assert exceeds_recommended_slenderness(Q_(30, "ft"), Q_(1, "in"))
     assert not exceeds_recommended_slenderness(Q_(25, "ft"), Q_(1, "in"))
+
+
+def test_get_methods_for_tension():
+    w = WideFlange("W14X90")
+    assert w.get_Pnt().m == pytest.approx(50 * 26.5)
+    assert w.get_phiPnt().m == pytest.approx(0.9 * 50 * 26.5)
+    # rupture governs: phi Pn = 0.75 * 65 * 19.8, and get_Pnt reports that limit state's Pn
+    assert w.get_Pnt(Q_(22.0, "in**2"), 0.9).m == pytest.approx(65 * 19.8)
+    assert w.get_phiPnt(Q_(22.0, "in**2"), 0.9).m == pytest.approx(0.75 * 65 * 19.8)

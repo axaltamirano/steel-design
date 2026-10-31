@@ -147,6 +147,16 @@ class Angle(DatabaseShape):
             slender_element("short leg", self.d, self.t, 1, limit, OTHER_ELEMENTS),
         )
 
+    def get_Pnc(self, L, K: float = 1.0, e5: str | None = None, connected_leg: str = "long"):
+        """Nominal compressive strength ``Pn`` of the governing limit state, in kips.
+        See :meth:`compression_strength` for the arguments."""
+        return self.compression_strength(L, K, e5, connected_leg).governing.Pn.to("kip")
+
+    def get_phiPnc(self, L, K: float = 1.0, e5: str | None = None, connected_leg: str = "long"):
+        """Governing compressive design strength ``phi_c Pn``, in kips.
+        See :meth:`compression_strength` for the arguments."""
+        return self.compression_strength(L, K, e5, connected_leg).design_strength.to("kip")
+
     def compression_strength(self, L, K: float = 1.0, e5: str | None = None, connected_leg: str = "long"):
         """Compressive strength of a single angle (Chapter E).
 

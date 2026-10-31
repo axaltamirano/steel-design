@@ -42,7 +42,6 @@ def test_w14x90_flexural_buckling_about_y_hand_calc():
     assert fb.Fn.m == pytest.approx(fn_stress(50, fe))
     assert fb.Pn.m == pytest.approx(fn_stress(50, fe) * 26.5)
     assert fb.design_strength.m == pytest.approx(0.9 * fn_stress(50, fe) * 26.5)
-    assert fb.allowable_strength.m == pytest.approx(fn_stress(50, fe) * 26.5 / 1.67)
     assert cs.design_strength == min(ls.design_strength for ls in cs.limit_states)
     assert not cs.has_slender_elements
 
@@ -108,7 +107,7 @@ def test_round_hss_slender_wall_effective_area():
     d_t = s.OD.m / s.tdes.m
     assert 0.11 * E / fy < d_t < 0.45 * E / fy
     expected = (0.038 * E / fy / d_t + 2 / 3) * s.A.m
-    assert s.compression_strength(Q_(10, "ft")).governing_lrfd.Ae.m == pytest.approx(expected)
+    assert s.compression_strength(Q_(10, "ft")).governing.Ae.m == pytest.approx(expected)
 
 
 def test_round_hss_beyond_limit_raises():
@@ -120,7 +119,7 @@ def test_hss_rect_flexural_buckling_nonslender():
     s = HSSRect("HSS8X8X1/2")
     cs = s.compression_strength(Q_(10, "ft"))
     fe = math.pi**2 * E / (120 / s.rx.m) ** 2
-    assert cs.governing_lrfd.Pn.m == pytest.approx(fn_stress(46, fe) * s.A.m, rel=0.1)
+    assert cs.governing.Pn.m == pytest.approx(fn_stress(46, fe) * s.A.m, rel=0.1)
     assert len(cs.limit_states) == 2
 
 
@@ -128,7 +127,7 @@ def test_built_up_box_slender_plates_reduced():
     box = BuiltUpBox(Q_(20, "in"), Q_(20, "in"), Q_(0.25, "in"), Q_(0.25, "in"), A992)
     cs = box.compression_strength(Q_(10, "ft"))
     assert cs.has_slender_elements
-    ls = cs.governing_lrfd
+    ls = cs.governing
     b = 19.5
     lam, lam_r = b / 0.25, 1.49 * math.sqrt(E / 50)
     fe = math.pi**2 * E / (120 / box.rx.m) ** 2
@@ -145,7 +144,7 @@ def test_single_angle_e5_planar_equal_leg():
     ratio = 72 + 0.75 * 60 / a.rx.m
     assert cs.slenderness_ratio == pytest.approx(ratio)
     fe = math.pi**2 * E / ratio**2
-    assert cs.governing_lrfd.Pn.m == pytest.approx(fn_stress(36, fe) * a.A.m)
+    assert cs.governing.Pn.m == pytest.approx(fn_stress(36, fe) * a.A.m)
 
 
 def test_single_angle_e5_box_truss_unequal_leg_short_leg_connected():
@@ -165,7 +164,7 @@ def test_single_angle_e5_requirements_enforced():
 
 def test_single_angle_principal_axis_buckling_without_e5():
     a = Angle("L6X4X1/2")
-    ls = a.compression_strength(Q_(10, "ft")).governing_lrfd
+    ls = a.compression_strength(Q_(10, "ft")).governing
     assert ls.name == "flexural buckling about minor principal axis"
     assert ls.slenderness == pytest.approx(120 / a.rz.m)
 
@@ -232,4 +231,15 @@ def test_doubly_symmetric_built_up_i_matches_torsional_modes():
 def test_every_family_runs(label):
     cs = get_shape(label).compression_strength(Q_(8, "ft"))
     assert cs.design_strength.m > 0
-    assert cs.allowable_strength.m > 0
+
+
+def test_get_methods_for_compression():
+    w = WideFlange("W14X90")
+    cs = w.compression_strength(Q_(10, "ft"))
+    assert w.get_Pnc(Q_(10, "ft")) == cs.governing.Pn
+    assert w.get_phiPnc(Q_(10, "ft")).m == pytest.approx(0.9 * cs.governing.Pn.m)
+    a = Angle("L4X4X1/2")
+    assert a.get_phiPnc(Q_(5, "ft"), e5="planar").m == pytest.approx(
+        0.9 * a.compression_strength(Q_(5, "ft"), e5="planar").governing.Pn.m
+    )
+    assert a.get_Pnc(Q_(5, "ft")).check("[force]")

@@ -15,23 +15,25 @@ section provides :meth:`~steel_design.sections.base.Section.tension_strength`.
    t.Ae                      # 19.8 in^2, Ae = An U (Eq. D3-1)
    t.yielding.Pn             # 1325 kip, Fy Ag (Eq. D2-1)
    t.rupture.design_strength # 965.25 kip, 0.75 Fu Ae (Eq. D2-2)
-   t.design_strength         # governing LRFD strength, phi_t Pn
-   t.allowable_strength      # governing ASD strength, Pn / omega_t
-   t.governing_lrfd.name     # "tensile rupture"
+   t.design_strength         # governing design strength, phi_t Pn
+   t.governing.name          # "tensile rupture"
+
+   w.get_Pnt(An=Q_(22.0, "in**2"), U=0.9)     # Pn of the governing limit state, kip
+   w.get_phiPnt(An=Q_(22.0, "in**2"), U=0.9)  # governing design strength, kip
 
 Limit states
 ------------
 
-==================  =============  ===================  ==================
-Limit state         Nominal        LRFD                 ASD
-==================  =============  ===================  ==================
-Gross yielding      ``Fy Ag``      ``phi_t = 0.90``     ``omega_t = 1.67``
-Net rupture         ``Fu Ae``      ``phi_t = 0.75``     ``omega_t = 2.00``
-==================  =============  ===================  ==================
+==================  =============  ===================
+Limit state         Nominal        LRFD
+==================  =============  ===================
+Gross yielding      ``Fy Ag``      ``phi_t = 0.90``
+Net rupture         ``Fu Ae``      ``phi_t = 0.75``
+==================  =============  ===================
 
 The design strength is the lower of the two. Each limit state is a
-:class:`~steel_design.tension.TensionLimitState` with ``Pn``, ``phi``, ``omega``,
-``design_strength``, ``allowable_strength`` and the equation ``reference``.
+:class:`~steel_design.tension.TensionLimitState` with ``Pn``, ``phi``,
+``design_strength`` and the equation ``reference``.
 
 Inputs
 ------
