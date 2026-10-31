@@ -41,6 +41,8 @@ The library is LRFD only. All resistance factors live in `steel_design.resistanc
 Each shape has `get_Pnt`/`get_phiPnt` (tension) and `get_Pnc`/`get_phiPnc` (compression) for the nominal and
 design strength of the governing limit state, in kips.
 
+Examples: see [examples/](examples/README.md). Documentation (Markdown, MyST): `uv run make -C docs html`.
+
 Tests: `uv run pytest`
 
 ```python
