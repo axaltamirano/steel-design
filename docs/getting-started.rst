@@ -36,5 +36,5 @@ Scope
 -----
 
 Implemented so far: materials, the shapes database, built-up sections and
-Section B4 local-buckling classification. Limit states for tension, compression,
-flexure and shear (Chapters D, E, F, G) are planned.
+Section B4 local-buckling classification and Chapter D tension (D1 to D3). Limit states
+for compression, flexure and shear (Chapters E, F, G) are planned.

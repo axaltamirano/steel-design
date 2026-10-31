@@ -70,5 +70,8 @@ API reference
 .. automodule:: steel_design.sections.pipe
    :members:
 
+.. automodule:: steel_design.tension
+   :members:
+
 .. automodule:: steel_design.classification
    :members:

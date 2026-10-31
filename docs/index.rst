@@ -16,6 +16,7 @@ with `pint <https://pint.readthedocs.io>`_.
    shapes
    built-up
    classification
+   tension
 
 .. toctree::
    :maxdepth: 2

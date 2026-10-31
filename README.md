@@ -21,6 +21,10 @@ box = BuiltUpBox(Ht=Q_(12, "in"), B=Q_(10, "in"), tf=Q_(0.5, "in"), tw=Q_(0.5, "
   (US units only). Regenerate with `uv run python tools/build_shape_csvs.py`.
 - **Units**: dimensions must be pint quantities; bare floats are rejected.
 
+Tension (AISC 360-22 Chapter D): `w.tension_strength(An=Q_(22, "in**2"), U=0.9)` returns the yielding
+(D2-1) and rupture (D2-2) limit states with LRFD and ASD strengths. `An` defaults to the gross area and the
+shear lag factor `U` is always user-supplied (default 1.0).
+
 Tests: `uv run pytest`
 
 ```python
