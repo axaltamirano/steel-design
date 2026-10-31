@@ -1,6 +1,6 @@
-API reference
-=============
+# API reference
 
+```{eval-rst}
 .. automodule:: steel_design.units
    :members:
 
@@ -87,3 +87,4 @@ API reference
 
 .. automodule:: steel_design.shear
    :members:
+```

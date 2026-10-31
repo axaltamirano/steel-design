@@ -5,6 +5,7 @@ author = "steel-design contributors"
 copyright = "2025, steel-design contributors"
 
 extensions = [
+    "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
@@ -16,6 +17,7 @@ intersphinx_mapping = {
 }
 autodoc_member_order = "bysource"
 autodoc_typehints = "description"
+source_suffix = {".md": "markdown"}
 exclude_patterns = ["_build"]
 html_theme = "furo"
 html_static_path = ["_static"]
