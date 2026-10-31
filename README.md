@@ -86,8 +86,6 @@ Unit tests include examples from the AISC Design Examples V16.0 reference, with 
 The project is managed with [uv](https://docs.astral.sh/uv/) and built with the `uv_build` backend.
 
 ```console
-$ git clone https://github.com/<your-account>/steel-design.git
-$ cd steel-design
 $ uv sync                  # creates .venv and installs the package with the dev dependencies
 $ uv run pytest            # optional: run the test suite
 $ uv build                 # writes an sdist and a wheel to dist/
