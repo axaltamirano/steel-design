@@ -36,3 +36,5 @@ class ResistanceFactors:
     SLIP_LONG_SLOT: Final = 0.70
     #: Bearing and tearout strength at bolt holes (Section J3.11).
     BEARING_TEAROUT: Final = 0.75
+    #: Fillet welds, weld metal rupture (Section J2.4, Table J2.5).
+    FILLET_WELD: Final = 0.75
