@@ -48,3 +48,13 @@ dependency).
 ```{literalinclude} ../examples/05_bracket_bolt_group.py
 :language: python
 ```
+
+## Bracket weld group: ICR
+
+Fillet weld strength, a C-shaped weld group under an eccentric load by the elastic and ICR
+methods, the Manual Part 8 coefficient, and an image of the group (needs the optional matplotlib
+dependency).
+
+```{literalinclude} ../examples/06_bracket_weld_group.py
+:language: python
+```

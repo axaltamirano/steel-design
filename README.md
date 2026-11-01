@@ -82,6 +82,20 @@ group.icr_strength_eccentric(Q_(6, "in")).Pn
 group.plot(e=Q_(6, "in"), angle=20)       # image of the group, load line, eccentricity and ICR (pip install steel-design[plot])
 ```
 
+### Welds and weld groups (Section J2)
+
+```python
+from steel_design.welds import E70XX, FilletWeld, WeldGroup
+
+weld = FilletWeld(Q_(5/16, "in"), Q_(10, "in"), electrode=E70XX)
+weld.design_strength()                    # phi Rn of the weld metal, Eq. J2-4
+
+# C-shaped weld group, vertical load 8" from the centroid (ICR method of Manual Part 8)
+group = WeldGroup.c_shape(Q_(10, "in"), Q_(4, "in"), Q_(5/16, "in"))
+group.icr_strength_eccentric(Q_(8, "in")).Pn
+group.elastic_strength((group.centroid[0] + Q_(8, "in"), group.centroid[1]))   # vector method
+```
+
 ## Examples
 
 Refer to [Examples](examples/README.md) for implementation examples. 

@@ -102,4 +102,16 @@
 
 .. automodule:: steel_design.bolts.icr
    :members:
+
+.. automodule:: steel_design.welds.electrodes
+   :members:
+
+.. automodule:: steel_design.welds.fillet
+   :members:
+
+.. automodule:: steel_design.welds.group
+   :members:
+
+.. automodule:: steel_design.welds.icr
+   :members:
 ```

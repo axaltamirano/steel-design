@@ -20,6 +20,7 @@ compression
 flexure
 shear
 bolts
+welds
 examples
 ```
 
