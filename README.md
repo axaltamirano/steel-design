@@ -61,11 +61,47 @@ box = BuiltUpBox(Ht=Q_(24,"in"), B=Q_(24, "in"), tf=Q_(2, "in"), tw=Q_(1, "in"))
 
 ### Tension (Chapter D)
 
+```python
+from steel_design.sections import Angle
+
+brace = Angle("L4X4X1/2")
+An = brace.A - Q_(7/8, "in") * brace.t   # net area is user-supplied
+brace.get_phiPnt(An=An, U=0.8)            # governing of yielding and rupture; U defaults to 1.0
+brace.tension_strength(An=An, U=0.8)      # both limit states with Ae, Pn and phi
+```
+
 ### Compression (Chapter E)
+
+```python
+from steel_design.materials import A500GrCRect
+from steel_design.sections import HSSRect
+
+col = HSSRect("HSS8X8X3/8", A500GrCRect)
+col.get_phiPnc(Lx=Q_(12, "ft"), Kx=1.0)   # Ly defaults to Lx, Ky to 1.0
+c = col.compression_strength(Lx=Q_(12, "ft"))
+c.governing.name, c.governing.Fe, c.design_strength
+```
 
 ### Flexure (Chapter F)
 
+```python
+from steel_design.flexure import cb
+
+beam = WideFlange("W18X50")
+Cb = cb(Mmax=Q_(180, "kip*ft"), MA=Q_(135, "kip*ft"), MB=Q_(180, "kip*ft"), MC=Q_(135, "kip*ft"))
+beam.get_phiMnx(Lb=Q_(10, "ft"), Cb=Cb)
+f = beam.flexure_strength("x", Lb=Q_(10, "ft"), Cb=Cb)
+f.governing.name, f.Lp, f.Lr, f.design_strength
+```
+
 ### Shear (Chapter G)
+
+```python
+beam = WideFlange("W18X50")
+beam.get_phiVnx()                         # major-axis shear
+v = beam.shear_strength("x")
+v.design_strength, v.reference
+```
 
 ### Bolts and bolt groups (Section J3)
 
